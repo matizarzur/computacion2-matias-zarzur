@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Búsqueda de texto en archivos, estilo grep.
+Uso: buscar.py <patron> [archivos] [-i] [-n] [-c] [-v]
+"""
 import argparse
 import sys
 

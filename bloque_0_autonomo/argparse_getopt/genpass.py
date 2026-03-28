@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Generador de contraseñas seguras.
+Uso: genpass.py [-n LONGITUD] [--no-symbols] [--no-numbers] [--count N]
+"""
 import argparse
 import sys
 import secrets

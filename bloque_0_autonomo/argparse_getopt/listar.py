@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Lista archivos de un directorio.
+Uso: listar.py [directorio] [-a] [--extension .ext]
+"""
 import argparse
 from pathlib import Path
 import sys

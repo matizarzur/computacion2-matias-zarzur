@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Cuenta las líneas de un archivo.
+Uso: wc_simple.py <archivo>
+"""
 import sys
 
 if len(sys.argv) < 2:

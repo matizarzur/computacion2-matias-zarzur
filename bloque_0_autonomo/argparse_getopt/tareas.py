@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Gestor de tareas por línea de comandos.
+Uso: tareas.py {add,list,done,remove} [opciones]
+"""
 import argparse
 import json
 import sys
