@@ -1,0 +1,79 @@
+Ejercicio 1.1 — Respuestas
+
+1. ¿Cuántos archivos hay en /etc?
+   Comando: ls /etc | wc -l
+   Respuesta: 168 elementos
+
+2. ¿Tamaño exacto de /etc/passwd?
+   Comando: ls -l /etc/passwd
+   Respuesta: 1424 bytes
+
+3. ¿Qué tipo de archivo es /dev/null?
+   Comando: file /dev/null
+   Respuesta: character special (1/3)
+   Es un dispositivo especial que descarta todo lo que se le escribe.
+
+4. ¿A dónde apunta el symlink /bin?
+   Comando: readlink /bin
+   Respuesta: usr/bin (en sistemas modernos /bin es un symlink a /usr/bin)
+
+5. ¿Número de inodo de .bashrc?
+   Comando: ls -i ~/.bashrc
+   Respuesta: inodo 1236
+
+6. ¿Cuántos enlaces duros tiene /home?
+   Comando: stat /home | grep Links
+   Respuesta: 3 enlaces
+   Un directorio tiene 2 base (. y su entrada en el padre) + 1 por cada subdirectorio
+
+#Extra, tambien incluí las respuestas de los demas Ejercicios:
+
+Ejercicio 1.2 — Permisos con chmod
+
+Al intentar ejecutar mi_script.sh sin permisos de ejecución, el sistema dio:
+  -bash: ./mi_script.sh: Permission denied
+
+Los permisos iniciales eran -rw-r--r-- (644), solo lectura y escritura.
+Después de chmod +x los permisos pasaron a -rwxr-xr-x (755).
+
+Preguntas:
+
+1. ¿Diferencia entre chmod +x y chmod 755?
+   chmod +x agrega ejecución a todos los grupos pero conserva los permisos existentes.
+   chmod 755 establece los permisos exactos rwxr-xr-x sin importar cómo estaban antes.
+
+2. Con permisos 644 (rw-r--r--), ¿quién puede leer y escribir?
+   Leer: todos (usuario, grupo y otros).
+   Escribir: solo el usuario dueño.
+
+3. ¿Por qué los directorios necesitan x para poder entrar?
+   En directorios, x significa poder atravesarlo.
+   Sin x no se puede hacer cd ni acceder a los archivos adentro,
+   aunque se puedan ver sus nombres con r.
+
+Ejercicio 1.3 — Enlaces duros vs simbólicos
+
+Al listar con ls -li se vio:
+  44087 -rw-r--r-- 2 matia matia 30 original.txt
+  44087 -rw-r--r-- 2 matia matia 30 enlace_duro.txt
+  44122 lrwxrwxrwx 1 matia matia 12 enlace_simbolico.txt -> original.txt
+
+Observaciones:
+- original.txt y enlace_duro.txt tienen el mismo inodo (44087).
+  Son literalmente el mismo archivo con dos nombres.
+- enlace_simbolico.txt tiene su propio inodo (44122).
+  Es un archivo aparte que contiene la ruta a original.txt.
+- El contador de enlaces dice 2 para los duros.
+
+Al borrar original.txt con rm:
+- cat enlace_duro.txt → sigue funcionando, muestra el contenido.
+  El inodo sigue vivo porque todavía tiene un nombre apuntándolo.
+- cat enlace_simbolico.txt → "No such file or directory".
+  Quedó roto porque apuntaba al nombre original.txt que ya no existe.
+  En ls -l aparece en rojo mostrando enlace_simbolico.txt -> original.txt.
+
+¿Cuándo usar cada uno?
+- Enlace duro: cuando quiero que dos nombres sean intercambiables
+  y que el archivo sobreviva aunque se borre el original.
+- Enlace simbólico: para todo lo demás, son más flexibles,
+  pueden cruzar particiones y apuntar a directorios.
