@@ -26,7 +26,7 @@ Ejercicio 1.1 — Respuestas
    Respuesta: 3 enlaces
    Un directorio tiene 2 base (. y su entrada en el padre) + 1 por cada subdirectorio
 
-#Extra, tambien incluí las respuestas de los demas Ejercicios:
+#Extra, tambien incluí las respuestas que aparecen en el repo, para revisar directamente aca si tengo dudas:
 
 Ejercicio 1.2 — Permisos con chmod
 
@@ -71,6 +71,8 @@ Al borrar original.txt con rm:
 - cat enlace_simbolico.txt → "No such file or directory".
   Quedó roto porque apuntaba al nombre original.txt que ya no existe.
   En ls -l aparece en rojo mostrando enlace_simbolico.txt -> original.txt.
+
+![alt text](image.png)
 
 ¿Cuándo usar cada uno?
 - Enlace duro: cuando quiero que dos nombres sean intercambiables
