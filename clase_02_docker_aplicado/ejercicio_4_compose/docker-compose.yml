@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  redis-data:
+
