@@ -19,7 +19,7 @@ if __name__ == "__main__":
     print(f"Secuencial:  {t_seq:.2f}s")
 
     # Con distintos números de workers
-    for workers in [1, 2, 4, 8, 16]:
+    for workers in [1, 2, 4, 8, 16, 32, 64, 128]:
         inicio = time.time()
         with Pool(workers) as pool:
             resultados = pool.map(cpu_task, [N] * TAREAS)
