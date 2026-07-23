@@ -10,3 +10,6 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Dumps del monitor (SIGUSR1 los genera en runtime)
+dump_*.json

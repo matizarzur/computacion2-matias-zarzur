@@ -1,0 +1,9 @@
+services:
+  monitor:
+    build: .
+    container_name: monitor
+    pid: "host"
+    cap_add:
+      - SYS_PTRACE
+    tty: true
+    stdin_open: true
