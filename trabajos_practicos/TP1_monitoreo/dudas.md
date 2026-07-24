@@ -52,3 +52,5 @@ de ser un problema para las lecturas.
 
 - Confirmar experimentalmente el PID namespace: ver el mismo proceso con
   dos PIDs simultáneos (adentro y afuera del contenedor).
+
+-Entender bien a fondo el dockerfile y porque el orden importa para la cache de capas.
