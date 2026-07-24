@@ -7,3 +7,5 @@ services:
       - SYS_PTRACE
     tty: true
     stdin_open: true
+    volumes:
+      - .:/app
