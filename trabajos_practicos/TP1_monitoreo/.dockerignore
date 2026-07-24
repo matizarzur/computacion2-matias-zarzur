@@ -1,0 +1,19 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Docs y config del repo (no del contenedor)
+README.md
+dudas.md
