@@ -9,3 +9,5 @@ services:
     stdin_open: true
     volumes:
       - .:/app
+    security_opt:
+      - apparmor:unconfined
