@@ -46,11 +46,22 @@ agregando `security_opt: apparmor:unconfined` al docker-compose.yml.
 Aparte, algunas apps (Firefox, Chrome, apps de Snap) tienen sandboxes propios
 ademas de AppArmor, pero con apparmor:unconfined en el contenedor eso deja
 de ser un problema para las lecturas.
+
+### Duda previa: Entender el Dockerfile en profundidad
+
+**Resuelta.** 
+- `FROM python:3.11-slim`: imagen base, elegida por ser Debian mínimo con glibc.
+- `LABEL`: metadata opcional, no afecta ejecución.
+- `RUN apt-get install ... && rm -rf ...`: instala herramientas de debug (procps,  
+  htop, strace) y limpia caché de apt EN LA MISMA CAPA para reducir tamaño. (Ninguno es esencial para el monitor, se colocaron como herramientas para verificacion)
+- `WORKDIR /app`: crea y se para en /app.
+- `COPY requirements.txt` antes que `COPY . .`: aprovecha cache de capas
+  para no reinstalar deps ante cambios de código.
+- `CMD ["bash"]`: comando de arranque del contenedor (cambia a `python src/main.py`
+  cerca de la entrega).
 ---
 
 ## Pendientes
 
 - Confirmar experimentalmente el PID namespace: ver el mismo proceso con
   dos PIDs simultáneos (adentro y afuera del contenedor).
-
--Entender bien a fondo el dockerfile y porque el orden importa para la cache de capas.
