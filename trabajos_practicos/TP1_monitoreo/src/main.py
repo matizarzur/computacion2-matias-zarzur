@@ -2,58 +2,83 @@
 main.py — Punto de entrada del monitor.
 
 Orquesta todos los procesos: recolector, analizadores, agregador, display.
-Por ahora solo levanta el recolector como prueba de concepto.
+Por ahora tenemos: recolector, agregador, y un "analizador de prueba".
 """
 
 import time
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager
 
 from recolector import recolector
+from agregador import agregador
+from procfs import leer_status
 
 
-def consumidor_prueba(cola_pids: Queue) -> None:
+def analizador_prueba(cola_pids: Queue, cola_resultados: Queue) -> None:
     """
-    Consumidor de prueba: toma PIDs de la cola y los cuenta.
-    Después reemplazamos este por los analizadores reales.
+    Analizador de prueba: toma PIDs de la cola_pids, les corre leer_status,
+    y mete el resultado en cola_resultados con formato de mensaje.
     """
-    contador = 0
+    import os
+    print(f"[Analizador prueba PID={os.getpid()}] arrancó")
+
     while True:
-        pid = cola_pids.get()   # bloquea hasta que haya algo
-        contador += 1
-        # Cada 100 PIDs, imprime un progreso
-        if contador % 100 == 0:
-            print(f"[Consumidor prueba] procesó {contador} PIDs (último: {pid})")
+        pid = cola_pids.get()
+        status = leer_status(pid)
+        if status is not None:
+            cola_resultados.put({
+                "tipo": "resumen",
+                "pid": pid,
+                "datos": status,
+            })
 
 
 if __name__ == "__main__":
     print("[Main] arrancando monitor...")
 
-    # 1. Cola compartida entre recolector y consumidor
-    cola_pids = Queue()
+    with Manager() as manager:
+        # Estructuras compartidas
+        cola_pids = Queue()
+        cola_resultados = Queue()
+        snapshot = manager.dict()
 
-    # 2. Lanzar recolector
-    p_recolector = Process(
-        target=recolector,
-        args=(cola_pids, 2.0),
-        name="recolector",
-        daemon=True,   # muere si el padre muere
-    )
-    p_recolector.start()
+        # Lanzar recolector
+        p_recolector = Process(
+            target=recolector,
+            args=(cola_pids, 2.0),
+            name="recolector",
+            daemon=True,
+        )
+        p_recolector.start()
 
-    # 3. Lanzar consumidor de prueba
-    p_consumidor = Process(
-        target=consumidor_prueba,
-        args=(cola_pids,),
-        name="consumidor",
-        daemon=True,
-    )
-    p_consumidor.start()
+        # Lanzar 1 analizador de prueba
+        p_analizador = Process(
+            target=analizador_prueba,
+            args=(cola_pids, cola_resultados),
+            name="analizador",
+            daemon=True,
+        )
+        p_analizador.start()
 
-    # 4. El main se queda mostrando algo mientras los hijos trabajan
-    try:
-        while True:
-            time.sleep(5)
-            print(f"[Main] cola tiene ~{cola_pids.qsize()} PIDs pendientes")
-    except KeyboardInterrupt:
-        print("\n[Main] Ctrl+C recibido, terminando...")
-        # Los daemons mueren solos al terminar el main
+        # Lanzar agregador
+        p_agregador = Process(
+            target=agregador,
+            args=(cola_resultados, snapshot),
+            name="agregador",
+            daemon=True,
+        )
+        p_agregador.start()
+
+        # Loop del main: cada 3 seg, imprime resumen del snapshot
+        try:
+            while True:
+                time.sleep(3)
+                if "resumen" in snapshot:
+                    procesos = snapshot["resumen"]
+                    print(f"[Main] snapshot tiene {len(procesos)} procesos en 'resumen'")
+                    # Mostrar los primeros 3
+                    for pid, status in list(procesos.items())[:3]:
+                        print(f"  PID={pid}: {status.name} (state={status.state})")
+                else:
+                    print("[Main] snapshot vacío todavía")
+        except KeyboardInterrupt:
+            print("\n[Main] Ctrl+C recibido, terminando...")
