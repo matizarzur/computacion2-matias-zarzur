@@ -10,26 +10,7 @@ from multiprocessing import Process, Queue, Manager
 
 from recolector import recolector
 from agregador import agregador
-from procfs import leer_status
-
-
-def analizador_prueba(cola_pids: Queue, cola_resultados: Queue) -> None:
-    """
-    Analizador de prueba: toma PIDs de la cola_pids, les corre leer_status,
-    y mete el resultado en cola_resultados con formato de mensaje.
-    """
-    import os
-    print(f"[Analizador prueba PID={os.getpid()}] arrancó")
-
-    while True:
-        pid = cola_pids.get()
-        status = leer_status(pid)
-        if status is not None:
-            cola_resultados.put({
-                "tipo": "resumen",
-                "pid": pid,
-                "datos": status,
-            })
+from analizadores.resumen import analizador_resumen
 
 
 if __name__ == "__main__":
@@ -51,13 +32,13 @@ if __name__ == "__main__":
         p_recolector.start() 
         
         # Lanzar 1 analizador de prueba
-        p_analizador = Process(
-            target=analizador_prueba,
+        p_resumen = Process(
+            target=analizador_resumen,
             args=(cola_pids, cola_resultados),
-            name="analizador",
+            name="analizador_resumen",
             daemon=True,
         )
-        p_analizador.start()
+        p_resumen.start()
 
         # Lanzar agregador
         p_agregador = Process(
