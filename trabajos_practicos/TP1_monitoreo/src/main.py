@@ -44,12 +44,12 @@ if __name__ == "__main__":
         # Lanzar recolector
         p_recolector = Process(
             target=recolector,
-            args=(cola_pids, 2.0),
+            args=(cola_pids, cola_resultados, 2.0),
             name="recolector",
             daemon=True,
         )
-        p_recolector.start()
-
+        p_recolector.start() 
+        
         # Lanzar 1 analizador de prueba
         p_analizador = Process(
             target=analizador_prueba,
