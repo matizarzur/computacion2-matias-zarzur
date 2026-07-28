@@ -2,7 +2,7 @@
 main.py — Punto de entrada del monitor.
 
 Orquesta todos los procesos: recolector, analizadores, agregador, display.
-Por ahora tenemos: recolector, agregador, y un "analizador de prueba".
+Por ahora tenemos: recolector, agregador, y dos analizadores (Resumen y Memoria).
 """
 
 import time
@@ -11,6 +11,7 @@ from multiprocessing import Process, Queue, Manager
 from recolector import recolector
 from agregador import agregador
 from analizadores.resumen import analizador_resumen
+from analizadores.memoria import analizador_memoria
 
 
 if __name__ == "__main__":
@@ -29,9 +30,9 @@ if __name__ == "__main__":
             name="recolector",
             daemon=True,
         )
-        p_recolector.start() 
-        
-        # Lanzar 1 analizador de prueba
+        p_recolector.start()
+
+        # Lanzar analizador de Resumen
         p_resumen = Process(
             target=analizador_resumen,
             args=(cola_pids, cola_resultados),
@@ -39,6 +40,15 @@ if __name__ == "__main__":
             daemon=True,
         )
         p_resumen.start()
+
+        # Lanzar analizador de Memoria
+        p_memoria = Process(
+            target=analizador_memoria,
+            args=(cola_pids, cola_resultados),
+            name="analizador_memoria",
+            daemon=True,
+        )
+        p_memoria.start()
 
         # Lanzar agregador
         p_agregador = Process(
@@ -49,17 +59,16 @@ if __name__ == "__main__":
         )
         p_agregador.start()
 
-        # Loop del main: cada 3 seg, imprime resumen del snapshot
+        # Loop del main: cada 3 seg, muestra estado del snapshot
         try:
             while True:
                 time.sleep(3)
+                print(f"[Main] snapshot tiene tipos: {list(snapshot.keys())}")
+
                 if "resumen" in snapshot:
-                    procesos = snapshot["resumen"]
-                    print(f"[Main] snapshot tiene {len(procesos)} procesos en 'resumen'")
-                    # Mostrar los primeros 3
-                    for pid, status in list(procesos.items())[:3]:
-                        print(f"  PID={pid}: {status.name} (state={status.state})")
-                else:
-                    print("[Main] snapshot vacío todavía")
+                    print(f"  resumen: {len(snapshot['resumen'])} procesos")
+
+                if "memoria" in snapshot:
+                    print(f"  memoria: {len(snapshot['memoria'])} procesos")
         except KeyboardInterrupt:
             print("\n[Main] Ctrl+C recibido, terminando...")
