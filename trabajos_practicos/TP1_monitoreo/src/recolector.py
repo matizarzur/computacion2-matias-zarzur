@@ -14,7 +14,7 @@ from procfs import listar_pids
 
 
 def recolector(
-    cola_pids: Queue,
+    colas_analizadores: list[Queue],
     cola_resultados: Queue,
     intervalo: float = 2.0,
 ) -> None:
@@ -22,7 +22,7 @@ def recolector(
     Proceso recolector. Corre en un proceso hijo.
 
     Args:
-        cola_pids: Queue donde se meten los PIDs para los analizadores.
+        colas_analizadores: lista de Queues, una por cada analizador.
         cola_resultados: Queue del agregador (para el mensaje "nueva_pasada").
         intervalo: cada cuántos segundos refrescar la lista.
     """
@@ -32,16 +32,16 @@ def recolector(
         pids = listar_pids()
         print(f"[Recolector] listó {len(pids)} PIDs")
 
-        # 1. Avisar al agregador ANTES de encolar los PIDs,
-        #    para que limpie los procesos muertos del snapshot.
+        # Avisar al agregador antes de encolar.
         cola_resultados.put({
             "tipo": "nueva_pasada",
             "pid": None,
-            "datos": pids,   # lista de PIDs vivos
+            "datos": pids,
         })
 
-        # 2. Ahora sí, encolar los PIDs para los analizadores.
+        # Encolar cada PID en TODAS las colas de analizadores.
         for pid in pids:
-            cola_pids.put(pid)
+            for cola in colas_analizadores:
+                cola.put(pid)
 
         time.sleep(intervalo)

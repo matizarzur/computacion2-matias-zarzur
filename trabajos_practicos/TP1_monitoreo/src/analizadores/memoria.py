@@ -14,7 +14,7 @@ def analizador_memoria(cola_pids: Queue, cola_resultados: Queue) -> None:
     analizador_por_pid(
         nombre="Memoria",
         tipo="memoria",
-        funcion_parseo=leer_maps,
-        cola_pids=cola_pids,
-        cola_resultados=cola_resultados,
+            funcion_parseo=leer_maps,
+            cola_pids=cola_pids,
+            cola_resultados=cola_resultados,
     )
