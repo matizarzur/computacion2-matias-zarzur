@@ -15,6 +15,7 @@ from analizadores.fds import analizador_fds
 from analizadores.threads import analizador_threads
 from analizadores.senales import analizador_senales
 from analizadores.scheduling import analizador_scheduling
+from analizadores.sistema import analizador_sistema
 
 
 if __name__ == "__main__":
@@ -81,6 +82,15 @@ if __name__ == "__main__":
             daemon=True,
         )
         p_agregador.start()
+        
+        # Analizador de Sistema (info global, no por PID)
+        p_sistema = Process(
+            target=analizador_sistema,
+            args=(cola_resultados, 2.0),
+            name="analizador_sistema",
+            daemon=True,
+        )
+        p_sistema.start()
 
         # Loop del main: muestra el estado del snapshot cada 3 segundos
         try:
@@ -90,9 +100,11 @@ if __name__ == "__main__":
                 print(f"\n[Main] snapshot tiene tipos: {tipos}")
                 for tipo in tipos:
                     valor = snapshot[tipo]
-                    if isinstance(valor, dict):
+                    if isinstance(valor, dict) and tipo != "sistema":
                         print(f"  {tipo}: {len(valor)} procesos")
-                    else:
-                        print(f"  {tipo}: {valor}")
+                    elif tipo == "sistema":
+                        loadavg = valor.get("loadavg")
+                        if loadavg:
+                            print(f"  sistema: load={loadavg.load_1min}, procs_corriendo={loadavg.procesos_corriendo}")
         except KeyboardInterrupt:
             print("\n[Main] Ctrl+C recibido, terminando...")
