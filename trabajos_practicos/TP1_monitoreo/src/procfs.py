@@ -8,18 +8,11 @@ tipadas para que los analizadores no repitan lógica de parseo.
 """
 
 import os
-import pwd
-import signal
 from dataclasses import dataclass
 from pathlib import Path
 
-
 PROC = Path("/proc")
 
-
-# ============================================================
-# Vista Resumen
-# ============================================================
 
 @dataclass
 class ProcessStatus:
@@ -28,7 +21,6 @@ class ProcessStatus:
     name: str
     state: str
     uid: int
-    gid: int
     threads: int
     vm_rss: int | None   # None para procesos kernel (no tienen memoria de usuario)
 
@@ -58,18 +50,20 @@ def leer_status(pid: int) -> ProcessStatus | None:
       - no tenemos permisos para leerlo
     """
     ruta = PROC / str(pid) / "status"
+
     try:
         with open(ruta) as f:
             contenido = f.read()
     except (FileNotFoundError, PermissionError):
         return None
 
+    # Valores por default. vm_rss queda en None si el proceso no la tiene
+    # (típicamente procesos kernel como kthreadd, PID 2)
     name = ""
     state = ""
     pid_leido = 0
     ppid = 0
     uid = 0
-    gid = 0
     threads = 0
     vm_rss = None
 
@@ -83,62 +77,27 @@ def leer_status(pid: int) -> ProcessStatus | None:
         if clave == "Name":
             name = valor
         elif clave == "State":
-            state = valor[0]
+            state = valor[0]   # ej: "S (sleeping)" -> "S"
         elif clave == "Pid":
             pid_leido = int(valor)
         elif clave == "PPid":
             ppid = int(valor)
         elif clave == "Uid":
             uid = int(valor.split()[0])   # el primero es el UID real
-        elif clave == "Gid":
-            gid = int(valor.split()[0])   # el primero es el GID real
         elif clave == "Threads":
             threads = int(valor)
         elif clave == "VmRSS":
-            vm_rss = int(valor.split()[0])
+            vm_rss = int(valor.split()[0])   # "13548 kB" -> 13548
 
     return ProcessStatus(
-        pid=pid_leido, ppid=ppid, name=name, state=state,
-        uid=uid, gid=gid, threads=threads, vm_rss=vm_rss,
+        pid=pid_leido,
+        ppid=ppid,
+        name=name,
+        state=state,
+        uid=uid,
+        threads=threads,
+        vm_rss=vm_rss,
     )
-
-
-def leer_cmdline(pid: int) -> str | None:
-    """
-    Lee /proc/<pid>/cmdline — el comando completo con sus argumentos.
-
-    En el archivo los argumentos vienen separados por bytes nulos ('\\0').
-    Los reemplazamos por espacios. Si está vacío (procesos kernel), se
-    devuelve el nombre entre corchetes para distinguirlos.
-    """
-    ruta = PROC / str(pid) / "cmdline"
-    try:
-        with open(ruta, "rb") as f:
-            crudo = f.read()
-    except (FileNotFoundError, PermissionError):
-        return None
-
-    if not crudo:
-        # cmdline vacío: es un proceso kernel. Devolvemos su comm entre corchetes.
-        comm = leer_comm(pid)
-        return f"[{comm}]" if comm else ""
-
-    # Los argumentos están separados por \0. Convertimos a texto legible.
-    texto = crudo.replace(b"\x00", b" ").decode("utf-8", errors="replace")
-    return texto.strip()
-
-
-def leer_usuario(uid: int) -> str:
-    """
-    Traduce un UID numérico al nombre de usuario (ej: 0 -> "root").
-
-    Si el UID no existe en la base de usuarios, devuelve el número como string.
-    """
-    try:
-        return pwd.getpwuid(uid).pw_name
-    except KeyError:
-        return str(uid)
-
 
 # ============================================================
 # Info global del sistema
@@ -162,22 +121,24 @@ class LoadAvg:
     load_1min: float
     load_5min: float
     load_15min: float
-    procesos_corriendo: int
-    procesos_total: int
-    ultimo_pid: int
+    procesos_corriendo: int      # los que están en estado R
+    procesos_total: int          # total de procesos + threads
+    ultimo_pid: int              # PID asignado más recientemente
 
 
 @dataclass
 class Uptime:
     """Tiempo desde el arranque del sistema."""
-    uptime_segundos: float
-    idle_segundos: float
+    uptime_segundos: float       # cuánto hace que arrancó la máquina
+    idle_segundos: float         # tiempo idle sumado de todas las CPUs
 
 
 def leer_meminfo() -> MemInfo | None:
     """
     Lee /proc/meminfo y devuelve un MemInfo con los campos principales.
-    Los valores están en kB.
+    Los valores están en kB (kilobytes).
+
+    Devuelve None si el archivo no se puede leer (raro, pero robusto por si acaso).
     """
     try:
         with open(PROC / "meminfo") as f:
@@ -185,29 +146,45 @@ def leer_meminfo() -> MemInfo | None:
     except (FileNotFoundError, PermissionError):
         return None
 
+    # Valores por default en 0 (por si algún campo no existe en el kernel actual).
     campos = {
-        "MemTotal": 0, "MemFree": 0, "MemAvailable": 0, "Buffers": 0,
-        "Cached": 0, "SwapTotal": 0, "SwapFree": 0,
+        "MemTotal": 0,
+        "MemFree": 0,
+        "MemAvailable": 0,
+        "Buffers": 0,
+        "Cached": 0,
+        "SwapTotal": 0,
+        "SwapFree": 0,
     }
+
     for line in contenido.splitlines():
         partes = line.split(":", 1)
         if len(partes) != 2:
             continue
         clave = partes[0]
         if clave in campos:
+            # El valor viene como "16234000 kB". Nos quedamos con el número.
             campos[clave] = int(partes[1].split()[0])
 
     return MemInfo(
-        total=campos["MemTotal"], free=campos["MemFree"],
-        available=campos["MemAvailable"], buffers=campos["Buffers"],
-        cached=campos["Cached"], swap_total=campos["SwapTotal"],
+        total=campos["MemTotal"],
+        free=campos["MemFree"],
+        available=campos["MemAvailable"],
+        buffers=campos["Buffers"],
+        cached=campos["Cached"],
+        swap_total=campos["SwapTotal"],
         swap_free=campos["SwapFree"],
     )
 
 
 def leer_loadavg() -> LoadAvg | None:
     """
-    Lee /proc/loadavg. Formato: "0.52 0.48 0.45 2/1234 5678"
+    Lee /proc/loadavg y devuelve un LoadAvg.
+
+    Formato del archivo: "0.52 0.48 0.45 2/1234 5678"
+    Los tres primeros son floats (1min, 5min, 15min).
+    El cuarto tiene la forma "corriendo/total".
+    El quinto es el último PID asignado.
     """
     try:
         with open(PROC / "loadavg") as f:
@@ -219,17 +196,27 @@ def leer_loadavg() -> LoadAvg | None:
     if len(partes) < 5:
         return None
 
+    # El cuarto campo "corriendo/total" hay que separarlo aparte.
     corriendo_str, total_str = partes[3].split("/")
+
     return LoadAvg(
-        load_1min=float(partes[0]), load_5min=float(partes[1]),
-        load_15min=float(partes[2]), procesos_corriendo=int(corriendo_str),
-        procesos_total=int(total_str), ultimo_pid=int(partes[4]),
+        load_1min=float(partes[0]),
+        load_5min=float(partes[1]),
+        load_15min=float(partes[2]),
+        procesos_corriendo=int(corriendo_str),
+        procesos_total=int(total_str),
+        ultimo_pid=int(partes[4]),
     )
 
 
 def leer_uptime() -> Uptime | None:
     """
-    Lee /proc/uptime. Formato: "12345.67 98765.43"
+    Lee /proc/uptime y devuelve un Uptime.
+
+    Formato: "12345.67 98765.43"
+    Primero: segundos desde el arranque.
+    Segundo: suma del tiempo idle de todas las CPUs (por eso puede ser mayor
+             que el uptime si tenés varios cores).
     """
     try:
         with open(PROC / "uptime") as f:
@@ -241,45 +228,37 @@ def leer_uptime() -> Uptime | None:
     if len(partes) < 2:
         return None
 
-    return Uptime(uptime_segundos=float(partes[0]), idle_segundos=float(partes[1]))
-
+    return Uptime(
+        uptime_segundos=float(partes[0]),
+        idle_segundos=float(partes[1]),
+    )
 
 # ============================================================
-# Vista Scheduling — /proc/<pid>/stat + status
+# Info por proceso
 # ============================================================
 
 @dataclass
 class ProcessStat:
     """
-    Datos de /proc/<pid>/stat y campos de scheduling de /proc/<pid>/status.
+    Datos de /proc/<pid>/stat.
+    Incluye tiempos de CPU, prioridad, política de scheduling.
     """
     pid: int
-    comm: str
-    state: str
+    comm: str                    # nombre del proceso (entre paréntesis en el archivo)
+    state: str                   # letra: R/S/D/T/Z
     ppid: int
-    pgid: int                       # process group id (campo 5)
-    sid: int                        # session id (campo 6)
-    utime: int                      # tiempo en modo usuario (jiffies)
-    stime: int                      # tiempo en modo kernel (jiffies)
-    priority: int                   # prioridad de scheduling
-    nice: int                       # valor nice
-    num_threads: int                # cantidad de threads
-    rt_priority: int                # prioridad de tiempo real (campo 40)
-    policy: int                     # 0=OTHER, 1=FIFO, 2=RR, etc.
-    cpus_allowed: str               # CPU affinity (de status: Cpus_allowed_list)
-    vol_ctxt: int                   # context switches voluntarios (de status)
-    nonvol_ctxt: int                # context switches involuntarios (de status)
-
-
-# Nombres legibles de las políticas de scheduling.
-POLITICAS_SCHED = {
-    0: "OTHER", 1: "FIFO", 2: "RR", 3: "BATCH", 5: "IDLE", 6: "DEADLINE",
-}
+    utime: int                   # tiempo en modo usuario (jiffies)
+    stime: int                   # tiempo en modo kernel (jiffies)
+    priority: int                # prioridad de scheduling
+    nice: int                    # valor nice
+    num_threads: int             # cantidad de threads
+    policy: int                  # 0=OTHER, 1=FIFO, 2=RR, etc.
 
 
 def leer_comm(pid: int) -> str | None:
     """
     Lee /proc/<pid>/comm — nombre corto del proceso.
+    Más liviano que leer_status si solo necesitás el nombre.
     """
     try:
         with open(PROC / str(pid) / "comm") as f:
@@ -290,16 +269,23 @@ def leer_comm(pid: int) -> str | None:
 
 def leer_stat(pid: int) -> ProcessStat | None:
     """
-    Lee /proc/<pid>/stat (scheduling y tiempos de CPU) y complementa con
-    los campos de context switches y affinity de /proc/<pid>/status.
+    Lee /proc/<pid>/stat — datos de scheduling y tiempos de CPU.
 
-    El campo 2 (comm) viene entre paréntesis y puede contener espacios,
-    por eso se parsea buscando el ÚLTIMO ')'.
+    El archivo es una sola línea con campos separados por espacios.
+    OJO: el campo 2 (comm) viene entre paréntesis y puede contener
+    espacios, así que hay que parsearlo con cuidado.
 
-    Campos de stat usados (1-indexed):
-      1 pid | 2 (comm) | 3 state | 4 ppid | 5 pgrp | 6 session
-      14 utime | 15 stime | 18 priority | 19 nice | 20 num_threads
-      40 rt_priority | 41 policy
+    Formato (simplificado, campos 1-indexed):
+      1  pid
+      2  (comm)
+      3  state
+      4  ppid
+      14 utime
+      15 stime
+      18 priority
+      19 nice
+      20 num_threads
+      41 policy
     """
     try:
         with open(PROC / str(pid) / "stat") as f:
@@ -307,151 +293,113 @@ def leer_stat(pid: int) -> ProcessStat | None:
     except (FileNotFoundError, PermissionError):
         return None
 
-    try:
-        inicio = contenido.index("(")
-        fin = contenido.rindex(")")
-    except ValueError:
-        return None
-
+    # El nombre viene entre paréntesis y puede tener espacios adentro.
+    # Estrategia: buscar el ÚLTIMO ')' y partir ahí.
+    # Ej: "1234 (mi proceso) S 1 ..." → antes=1234, comm=mi proceso, resto=S 1 ...
+    inicio = contenido.index("(")
+    fin = contenido.rindex(")")
     pid_str = contenido[:inicio].strip()
     comm = contenido[inicio + 1:fin]
     resto = contenido[fin + 1:].split()
-    # resto[0] = campo 3 (state). Para el campo N del archivo -> resto[N-3].
 
-    try:
-        stat_data = {
-            "pid": int(pid_str),
-            "comm": comm,
-            "state": resto[0],          # campo 3
-            "ppid": int(resto[1]),      # campo 4
-            "pgid": int(resto[2]),      # campo 5
-            "sid": int(resto[3]),       # campo 6
-            "utime": int(resto[11]),    # campo 14
-            "stime": int(resto[12]),    # campo 15
-            "priority": int(resto[15]), # campo 18
-            "nice": int(resto[16]),     # campo 19
-            "num_threads": int(resto[17]),  # campo 20
-            "rt_priority": int(resto[37]),  # campo 40
-            "policy": int(resto[38]),   # campo 41
-        }
-    except (IndexError, ValueError):
-        return None
-
-    # Campos extra de /proc/<pid>/status: affinity y context switches.
-    cpus_allowed = ""
-    vol_ctxt = 0
-    nonvol_ctxt = 0
-    try:
-        with open(PROC / str(pid) / "status") as f:
-            for line in f:
-                if line.startswith("Cpus_allowed_list:"):
-                    cpus_allowed = line.split(":", 1)[1].strip()
-                elif line.startswith("voluntary_ctxt_switches:"):
-                    vol_ctxt = int(line.split(":", 1)[1].strip())
-                elif line.startswith("nonvoluntary_ctxt_switches:"):
-                    nonvol_ctxt = int(line.split(":", 1)[1].strip())
-    except (FileNotFoundError, PermissionError):
-        pass
-
+    # A partir de acá los campos están indexados desde 0 pero corresponden
+    # al campo 3 en adelante del archivo (state, ppid, ...).
     return ProcessStat(
-        cpus_allowed=cpus_allowed, vol_ctxt=vol_ctxt, nonvol_ctxt=nonvol_ctxt,
-        **stat_data,
+        pid=int(pid_str),
+        comm=comm,
+        state=resto[0],
+        ppid=int(resto[1]),
+        utime=int(resto[11]),        # campo 14 del archivo → índice 11 del resto
+        stime=int(resto[12]),        # campo 15
+        priority=int(resto[15]),     # campo 18
+        nice=int(resto[16]),         # campo 19
+        num_threads=int(resto[17]),  # campo 20
+        policy=int(resto[38]),       # campo 41
     )
 
 
-def nombre_politica(policy: int) -> str:
-    """Traduce el número de política de scheduling a su nombre."""
-    return POLITICAS_SCHED.get(policy, f"?({policy})")
-
-
-# ============================================================
-# Vista Memoria — /proc/<pid>/status, /stat y /maps
-# ============================================================
-
-@dataclass
-class ProcessMemoria:
+def listar_threads(pid: int) -> list[int] | None:
     """
-    Datos de memoria de un proceso. Los Vm* están en kB y pueden ser None
-    en procesos kernel. Los page faults son contadores acumulados.
+    Lista los TIDs (thread IDs) del proceso.
+    Cada thread aparece como una carpeta en /proc/<pid>/task/.
     """
-    vm_size: int | None
-    vm_rss: int | None
-    vm_data: int | None
-    vm_stk: int | None
-    vm_exe: int | None
-    vm_lib: int | None
-    vm_hwm: int | None
-    vm_swap: int | None
-    minor_faults: int
-    major_faults: int
+    try:
+        entries = os.listdir(PROC / str(pid) / "task")
+    except (FileNotFoundError, PermissionError):
+        return None
+    return [int(t) for t in entries if t.isdigit()]
 
+
+def listar_fds(pid: int) -> list[int] | None:
+    """
+    Lista los file descriptors abiertos por el proceso.
+    Cada FD es un symlink en /proc/<pid>/fd/.
+    Requiere permisos suficientes (CAP_SYS_PTRACE para procesos ajenos).
+    """
+    try:
+        entries = os.listdir(PROC / str(pid) / "fd")
+    except (FileNotFoundError, PermissionError):
+        return None
+    return [int(fd) for fd in entries if fd.isdigit()]
 
 @dataclass
 class MemoryRegion:
-    """Una región de memoria virtual del proceso (una línea de /proc/<pid>/maps)."""
-    addr_start: int
-    addr_end: int
-    permisos: str
-    offset: int
-    pathname: str
+    """
+    Una región de memoria virtual del proceso.
+    Corresponde a una línea de /proc/<pid>/maps.
+    """
+    addr_start: int          # dirección inicial (en bytes, ya convertida de hex)
+    addr_end: int            # dirección final
+    permisos: str            # "rwxp" o similar (r/w/x/p o s)
+    offset: int              # offset dentro del archivo (si aplica)
+    pathname: str            # ruta del archivo, [heap], [stack], [vdso], o "" (anónima)
 
     @property
     def size(self) -> int:
+        """Tamaño de la región en bytes."""
         return self.addr_end - self.addr_start
 
 
-def leer_memoria(pid: int) -> ProcessMemoria | None:
+@dataclass
+class ProcessSignals:
     """
-    Lee los campos de memoria de /proc/<pid>/status y los page faults
-    de /proc/<pid>/stat.
+    Información de señales de un proceso, extraída de /proc/<pid>/status.
+    Cada campo es una máscara donde cada bit representa una señal.
+    Los guardamos como int (ya convertidos de hex) para facilitar el trabajo con bits.
     """
-    ruta_status = PROC / str(pid) / "status"
-    try:
-        with open(ruta_status) as f:
-            contenido = f.read()
-    except (FileNotFoundError, PermissionError):
-        return None
+    sig_pnd: int    # señales pendientes para el thread
+    shd_pnd: int    # señales pendientes para el proceso (shared)
+    sig_blk: int    # señales bloqueadas
+    sig_ign: int    # señales ignoradas
+    sig_cgt: int    # señales con handler (caught)
 
-    vm = {
-        "VmSize": None, "VmRSS": None, "VmData": None, "VmStk": None,
-        "VmExe": None, "VmLib": None, "VmHWM": None, "VmSwap": None,
-    }
-    for line in contenido.splitlines():
-        partes = line.split(":", 1)
-        if len(partes) != 2:
-            continue
-        clave = partes[0]
-        if clave in vm:
-            vm[clave] = int(partes[1].split()[0])
 
-    # Page faults de /proc/<pid>/stat (campos 10 y 12).
-    minor_faults = 0
-    major_faults = 0
-    try:
-        with open(PROC / str(pid) / "stat") as f:
-            contenido_stat = f.read()
-        fin = contenido_stat.rindex(")")
-        resto = contenido_stat[fin + 1:].split()
-        # resto[0] = campo 3. minflt = campo 10 -> resto[7], majflt = campo 12 -> resto[9].
-        minor_faults = int(resto[7])
-        major_faults = int(resto[9])
-    except (FileNotFoundError, PermissionError, ValueError, IndexError):
-        pass
-
-    return ProcessMemoria(
-        vm_size=vm["VmSize"], vm_rss=vm["VmRSS"], vm_data=vm["VmData"],
-        vm_stk=vm["VmStk"], vm_exe=vm["VmExe"], vm_lib=vm["VmLib"],
-        vm_hwm=vm["VmHWM"], vm_swap=vm["VmSwap"],
-        minor_faults=minor_faults, major_faults=major_faults,
-    )
+@dataclass
+class SistemaStat:
+    """
+    Info agregada del sistema, de /proc/stat.
+    """
+    cpu_user: int           # tiempo total (jiffies) en modo usuario
+    cpu_nice: int           # tiempo total en modo usuario con nice
+    cpu_system: int         # tiempo total en modo kernel
+    cpu_idle: int           # tiempo total idle
+    cpu_iowait: int         # tiempo esperando I/O
+    procesos_creados: int   # total de procesos creados desde el arranque
+    context_switches: int   # total de context switches desde el arranque
+    procs_running: int      # procesos en estado R ahora mismo
+    procs_blocked: int      # procesos bloqueados en I/O ahora mismo
 
 
 def leer_maps(pid: int) -> list[MemoryRegion] | None:
     """
     Lee /proc/<pid>/maps y devuelve la lista de regiones de memoria virtual.
 
-    Formato de cada línea:
+    Cada línea del archivo tiene el formato:
       addr_start-addr_end perms offset dev inode pathname
+
+    Ejemplo:
+      55d8f4a00000-55d8f4a02000 r--p 00000000 08:01 12345 /usr/bin/firefox
+      7f8a12345000-7f8a12346000 rw-p 00000000 00:00 0     [heap]
     """
     try:
         with open(PROC / str(pid) / "maps") as f:
@@ -461,215 +409,39 @@ def leer_maps(pid: int) -> list[MemoryRegion] | None:
 
     regiones = []
     for line in contenido.splitlines():
+        # split con maxsplit=5 para que el pathname (que puede tener espacios) quede entero
         partes = line.split(maxsplit=5)
         if len(partes) < 5:
             continue
+
+        # partes[0] es "addr_start-addr_end", lo separamos
         rango = partes[0].split("-")
         if len(rango) != 2:
             continue
+
+        addr_start = int(rango[0], 16)   # base 16 → hexadecimal
+        addr_end = int(rango[1], 16)
+        permisos = partes[1]
+        offset = int(partes[2], 16)
+        # partes[3] es dev, partes[4] es inode — los ignoramos
+        pathname = partes[5] if len(partes) == 6 else ""
+
         regiones.append(MemoryRegion(
-            addr_start=int(rango[0], 16),
-            addr_end=int(rango[1], 16),
-            permisos=partes[1],
-            offset=int(partes[2], 16),
-            pathname=partes[5] if len(partes) == 6 else "",
+            addr_start=addr_start,
+            addr_end=addr_end,
+            permisos=permisos,
+            offset=offset,
+            pathname=pathname,
         ))
+
     return regiones
-
-
-def agrupar_regiones(regiones: list[MemoryRegion]) -> dict:
-    """
-    Agrupa las regiones de memoria por tipo y suma sus tamaños (en bytes).
-
-    Categorías:
-      heap, stack, text (código ejecutable), data (datos con escritura),
-      shared (librerías), anon (anónimas sin nombre).
-    """
-    grupos = {
-        "heap": 0, "stack": 0, "text": 0,
-        "data": 0, "shared": 0, "anon": 0,
-    }
-    for r in regiones:
-        if r.pathname == "[heap]":
-            grupos["heap"] += r.size
-        elif r.pathname == "[stack]":
-            grupos["stack"] += r.size
-        elif "x" in r.permisos:
-            grupos["text"] += r.size        # ejecutable = código
-        elif r.pathname and r.pathname.startswith("/"):
-            grupos["shared"] += r.size       # mapeada desde un archivo (librería)
-        elif "w" in r.permisos:
-            grupos["data"] += r.size         # escribible con nombre = datos
-        else:
-            grupos["anon"] += r.size
-    return grupos
-
-
-# ============================================================
-# Vista File Descriptors — /proc/<pid>/fd
-# ============================================================
-
-@dataclass
-class FileDescriptor:
-    """Un file descriptor abierto por el proceso."""
-    numero: int
-    destino: str        # a dónde apunta el symlink
-    tipo: str           # file / socket / pipe / tty / anon / desconocido
-
-
-def listar_fds(pid: int) -> list[int] | None:
-    """Lista los números de file descriptors abiertos por el proceso."""
-    try:
-        entries = os.listdir(PROC / str(pid) / "fd")
-    except (FileNotFoundError, PermissionError):
-        return None
-    return [int(fd) for fd in entries if fd.isdigit()]
-
-
-def _inferir_tipo_fd(destino: str) -> str:
-    """Infiere el tipo de un FD a partir del destino de su symlink."""
-    if destino.startswith("socket:"):
-        return "socket"
-    if destino.startswith("pipe:"):
-        return "pipe"
-    if destino.startswith("anon_inode:"):
-        return "anon"
-    if destino.startswith("/dev/pts/") or destino.startswith("/dev/tty"):
-        return "tty"
-    if destino.startswith("/"):
-        return "file"
-    return "desconocido"
-
-
-def resolver_fds(pid: int) -> list[FileDescriptor] | None:
-    """
-    Lista los FDs del proceso resolviendo el destino de cada symlink
-    y clasificando su tipo.
-    """
-    base = PROC / str(pid) / "fd"
-    try:
-        entries = os.listdir(base)
-    except (FileNotFoundError, PermissionError):
-        return None
-
-    resultado = []
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        numero = int(entry)
-        try:
-            destino = os.readlink(base / entry)
-        except (FileNotFoundError, PermissionError, OSError):
-            # El FD pudo cerrarse entre el listado y el readlink (TOCTOU).
-            continue
-        resultado.append(FileDescriptor(
-            numero=numero, destino=destino, tipo=_inferir_tipo_fd(destino),
-        ))
-    return resultado
-
-
-# ============================================================
-# Vista Threads — /proc/<pid>/task
-# ============================================================
-
-@dataclass
-class ThreadInfo:
-    """Información de un thread (LWP) individual."""
-    tid: int
-    comm: str
-    state: str
-    utime: int              # jiffies en modo usuario
-    stime: int              # jiffies en modo kernel
-    vol_ctxt: int           # context switches voluntarios
-    nonvol_ctxt: int        # context switches involuntarios
-
-
-def listar_threads(pid: int) -> list[int] | None:
-    """Lista los TIDs del proceso (subcarpetas de /proc/<pid>/task/)."""
-    try:
-        entries = os.listdir(PROC / str(pid) / "task")
-    except (FileNotFoundError, PermissionError):
-        return None
-    return [int(t) for t in entries if t.isdigit()]
-
-
-def leer_threads_detalle(pid: int) -> list[ThreadInfo] | None:
-    """
-    Lee el detalle de cada thread del proceso: estado, comm, tiempos de CPU
-    y context switches. Datos de /proc/<pid>/task/<tid>/stat y /status.
-    """
-    base = PROC / str(pid) / "task"
-    try:
-        entries = os.listdir(base)
-    except (FileNotFoundError, PermissionError):
-        return None
-
-    threads = []
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        tid = int(entry)
-
-        # stat del thread: estado y tiempos de CPU.
-        comm = ""
-        state = ""
-        utime = 0
-        stime = 0
-        try:
-            with open(base / entry / "stat") as f:
-                contenido = f.read()
-            inicio = contenido.index("(")
-            fin = contenido.rindex(")")
-            comm = contenido[inicio + 1:fin]
-            resto = contenido[fin + 1:].split()
-            state = resto[0]
-            utime = int(resto[11])
-            stime = int(resto[12])
-        except (FileNotFoundError, PermissionError, ValueError, IndexError):
-            continue
-
-        # status del thread: context switches.
-        vol_ctxt = 0
-        nonvol_ctxt = 0
-        try:
-            with open(base / entry / "status") as f:
-                for line in f:
-                    if line.startswith("voluntary_ctxt_switches:"):
-                        vol_ctxt = int(line.split(":", 1)[1].strip())
-                    elif line.startswith("nonvoluntary_ctxt_switches:"):
-                        nonvol_ctxt = int(line.split(":", 1)[1].strip())
-        except (FileNotFoundError, PermissionError):
-            pass
-
-        threads.append(ThreadInfo(
-            tid=tid, comm=comm, state=state, utime=utime, stime=stime,
-            vol_ctxt=vol_ctxt, nonvol_ctxt=nonvol_ctxt,
-        ))
-    return threads
-
-
-# ============================================================
-# Vista Señales — /proc/<pid>/status
-# ============================================================
-
-@dataclass
-class ProcessSignals:
-    """
-    Máscaras de señales de /proc/<pid>/status. Cada campo es una máscara
-    donde cada bit representa una señal (bit N = señal N+1).
-    Se guardan como int (convertidos de hex) para trabajar con bits.
-    """
-    sig_pnd: int
-    shd_pnd: int
-    sig_blk: int
-    sig_ign: int
-    sig_cgt: int
 
 
 def leer_signals(pid: int) -> ProcessSignals | None:
     """
     Lee las máscaras de señales de /proc/<pid>/status.
-    Vienen en hexadecimal (ej: "0000000180010000").
+    Las máscaras vienen como hexadecimales (ej: "0000000180010000").
+    Cada bit representa una señal: bit N = señal N+1.
     """
     ruta = PROC / str(pid) / "status"
     try:
@@ -678,64 +450,43 @@ def leer_signals(pid: int) -> ProcessSignals | None:
     except (FileNotFoundError, PermissionError):
         return None
 
-    campos = {"SigPnd": 0, "ShdPnd": 0, "SigBlk": 0, "SigIgn": 0, "SigCgt": 0}
+    campos = {
+        "SigPnd": 0,
+        "ShdPnd": 0,
+        "SigBlk": 0,
+        "SigIgn": 0,
+        "SigCgt": 0,
+    }
+
     for line in contenido.splitlines():
         partes = line.split(":", 1)
         if len(partes) != 2:
             continue
         clave = partes[0]
         if clave in campos:
+            # El valor viene en hex sin prefijo "0x", lo pasamos a int base 16.
             campos[clave] = int(partes[1].strip(), 16)
 
     return ProcessSignals(
-        sig_pnd=campos["SigPnd"], shd_pnd=campos["ShdPnd"],
-        sig_blk=campos["SigBlk"], sig_ign=campos["SigIgn"],
+        sig_pnd=campos["SigPnd"],
+        shd_pnd=campos["ShdPnd"],
+        sig_blk=campos["SigBlk"],
+        sig_ign=campos["SigIgn"],
         sig_cgt=campos["SigCgt"],
     )
 
 
-def decodificar_senales(mascara: int) -> list[str]:
-    """
-    Convierte una máscara de señales a la lista de nombres legibles.
-
-    Cada bit de la máscara representa una señal: el bit 0 es la señal 1
-    (SIGHUP), el bit 1 la señal 2 (SIGINT), etc. Usamos el módulo signal
-    para traducir el número al nombre.
-    """
-    nombres = []
-    for bit in range(64):
-        if mascara & (1 << bit):
-            numero = bit + 1          # el bit 0 corresponde a la señal 1
-            try:
-                nombres.append(signal.Signals(numero).name)
-            except ValueError:
-                nombres.append(f"SIG{numero}")   # señal sin nombre conocido
-    return nombres
-
-
-# ============================================================
-# Vista Sistema — /proc/stat
-# ============================================================
-
-@dataclass
-class SistemaStat:
-    """Info agregada del sistema, de /proc/stat."""
-    cpu_user: int
-    cpu_nice: int
-    cpu_system: int
-    cpu_idle: int
-    cpu_iowait: int
-    procesos_creados: int
-    context_switches: int
-    procs_running: int
-    procs_blocked: int
-    btime: int                # boot time (segundos desde epoch)
-
-
 def leer_stat_sistema() -> SistemaStat | None:
     """
-    Lee /proc/stat — info agregada del sistema (CPU total, context switches,
-    procesos creados, corriendo, bloqueados y boot time).
+    Lee /proc/stat — info agregada del sistema.
+
+    Formato (líneas relevantes):
+      cpu  user nice system idle iowait irq softirq steal guest guest_nice
+      ...
+      ctxt <n>              → total de context switches
+      processes <n>         → total de procesos creados
+      procs_running <n>     → procesos en R ahora
+      procs_blocked <n>     → procesos bloqueados en I/O ahora
     """
     try:
         with open(PROC / "stat") as f:
@@ -745,13 +496,14 @@ def leer_stat_sistema() -> SistemaStat | None:
 
     cpu_user = cpu_nice = cpu_system = cpu_idle = cpu_iowait = 0
     procesos_creados = context_switches = procs_running = procs_blocked = 0
-    btime = 0
 
     for line in contenido.splitlines():
         partes = line.split()
         if not partes:
             continue
+
         if partes[0] == "cpu":
+            # Primera línea "cpu" (sin número) = agregado de todos los cores
             cpu_user = int(partes[1])
             cpu_nice = int(partes[2])
             cpu_system = int(partes[3])
@@ -765,74 +517,62 @@ def leer_stat_sistema() -> SistemaStat | None:
             procs_running = int(partes[1])
         elif partes[0] == "procs_blocked":
             procs_blocked = int(partes[1])
-        elif partes[0] == "btime":
-            btime = int(partes[1])
 
     return SistemaStat(
-        cpu_user=cpu_user, cpu_nice=cpu_nice, cpu_system=cpu_system,
-        cpu_idle=cpu_idle, cpu_iowait=cpu_iowait,
-        procesos_creados=procesos_creados, context_switches=context_switches,
-        procs_running=procs_running, procs_blocked=procs_blocked, btime=btime,
+        cpu_user=cpu_user,
+        cpu_nice=cpu_nice,
+        cpu_system=cpu_system,
+        cpu_idle=cpu_idle,
+        cpu_iowait=cpu_iowait,
+        procesos_creados=procesos_creados,
+        context_switches=context_switches,
+        procs_running=procs_running,
+        procs_blocked=procs_blocked,
     )
-
-
-# ============================================================
-# Prueba manual del módulo
-# ============================================================
 
 if __name__ == "__main__":
     pids = listar_pids()
     print(f"Procesos detectados: {len(pids)}")
+    print(f"Primeros 10 PIDs: {sorted(pids)[:10]}")
 
-    pid_prueba = os.getpid()   # nos analizamos a nosotros mismos
-    print(f"\n=== Analizando el propio proceso (PID {pid_prueba}) ===")
+    print("\n--- leer_status(1) ---")
+    print(leer_status(1))
 
-    print("\n--- leer_status ---")
-    print(leer_status(pid_prueba))
+    print("\n--- leer_status(2) ---")
+    print(leer_status(2))
 
-    print("\n--- leer_cmdline ---")
-    print(leer_cmdline(pid_prueba))
+    print("\n--- leer_meminfo() ---")
+    print(leer_meminfo())
 
-    print("\n--- leer_usuario(0) y leer_usuario(uid propio) ---")
-    st = leer_status(pid_prueba)
-    print("uid 0 ->", leer_usuario(0))
-    print(f"uid {st.uid} ->", leer_usuario(st.uid))
+    print("\n--- leer_loadavg() ---")
+    print(leer_loadavg())
 
-    print("\n--- leer_memoria ---")
-    print(leer_memoria(pid_prueba))
+    print("\n--- leer_uptime() ---")
+    print(leer_uptime())
+    print("\n--- leer_comm(3246) ---")
+    print(leer_comm(3246))
 
-    print("\n--- leer_stat (scheduling) ---")
-    stat = leer_stat(pid_prueba)
-    print(stat)
-    if stat:
-        print("politica:", nombre_politica(stat.policy))
+    print("\n--- leer_stat(3246) ---")
+    print(leer_stat(3246))
 
-    print("\n--- agrupar_regiones ---")
-    regiones = leer_maps(pid_prueba)
+    print("\n--- listar_threads(3246) — primeros 10 ---")
+    threads = listar_threads(3246)
+    print(f"Total threads: {len(threads) if threads else 0}")
+    print(f"Primeros 10: {sorted(threads)[:10] if threads else None}")
+
+    print("\n--- listar_fds(3246) — primeros 10 ---")
+    fds = listar_fds(3246)
+    print(f"Total FDs: {len(fds) if fds else 0}")
+    print(f"Primeros 10: {sorted(fds)[:10] if fds else None}")
+    print("\n--- leer_maps(3246) — primeras 3 regiones ---")
+    regiones = leer_maps(3246)
     if regiones:
-        grupos = agrupar_regiones(regiones)
-        for tipo, tam in grupos.items():
-            print(f"  {tipo}: {tam // 1024} kB")
+        print(f"Total regiones: {len(regiones)}")
+        for r in regiones[:3]:
+            print(f"  {hex(r.addr_start)}-{hex(r.addr_end)} {r.permisos} {r.pathname or '(anónima)'} — {r.size} bytes")
 
-    print("\n--- resolver_fds (primeros 5) ---")
-    fds = resolver_fds(pid_prueba)
-    if fds:
-        for fd in fds[:5]:
-            print(f"  fd {fd.numero}: {fd.tipo} -> {fd.destino}")
+    print("\n--- leer_signals(3246) ---")
+    print(leer_signals(3246))
 
-    print("\n--- leer_threads_detalle ---")
-    threads = leer_threads_detalle(pid_prueba)
-    if threads:
-        print(f"Total threads: {len(threads)}")
-        for t in threads[:3]:
-            print(f"  tid {t.tid} ({t.comm}) estado={t.state} ctxt={t.vol_ctxt}/{t.nonvol_ctxt}")
-
-    print("\n--- decodificar_senales ---")
-    sig = leer_signals(pid_prueba)
-    if sig:
-        print("bloqueadas (SigBlk):", decodificar_senales(sig.sig_blk))
-        print("ignoradas  (SigIgn):", decodificar_senales(sig.sig_ign))
-        print("con handler(SigCgt):", decodificar_senales(sig.sig_cgt))
-
-    print("\n--- leer_stat_sistema ---")
+    print("\n--- leer_stat_sistema() ---")
     print(leer_stat_sistema())
