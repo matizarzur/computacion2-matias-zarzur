@@ -11,6 +11,7 @@ import os
 from multiprocessing import Queue
 
 from procfs import listar_pids
+from senales import resetear_handlers_en_hijo
 
 
 def recolector(
@@ -26,13 +27,14 @@ def recolector(
         cola_resultados: Queue del agregador (para el mensaje "nueva_pasada").
         intervalo: cada cuántos segundos refrescar la lista.
     """
+    resetear_handlers_en_hijo()
     print(f"[Recolector PID={os.getpid()}] arrancó, intervalo={intervalo}s")
 
     while True:
         pids = listar_pids()
         print(f"[Recolector] listó {len(pids)} PIDs")
 
-        # Avisar al agregador antes de encolar.
+        # Avisar al agregador antes de encolar los PIDs.
         cola_resultados.put({
             "tipo": "nueva_pasada",
             "pid": None,

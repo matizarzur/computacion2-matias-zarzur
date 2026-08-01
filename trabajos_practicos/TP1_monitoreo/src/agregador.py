@@ -12,11 +12,14 @@ Maneja dos tipos de mensajes:
 import os
 from multiprocessing import Queue
 
+from senales import resetear_handlers_en_hijo
+
 
 def agregador(cola_resultados: Queue, snapshot: dict) -> None:
     """
     Proceso agregador. Corre en un proceso hijo.
     """
+    resetear_handlers_en_hijo()
     print(f"[Agregador PID={os.getpid()}] arrancó")
 
     while True:
@@ -47,15 +50,17 @@ def agregador(cola_resultados: Queue, snapshot: dict) -> None:
 
 def _limpiar_snapshot(snapshot: dict, pids_vivos: set) -> None:
     """
-    Recorre las sub-estructuras del snapshot que están indexadas por PID
+    Recorre las sub-estructuras del snapshot indexadas por PID
     y borra los PIDs que ya no están vivos.
 
-    Solo toca dicts (los tipos por proceso). Los valores que no son dict
-    (info global como "sistema") se dejan intactos.
+    Saltea "sistema" porque es un dict con claves fijas (meminfo, loadavg, ...)
+    y no está indexado por PID.
     """
     for tipo in list(snapshot.keys()):
+        if tipo == "sistema":
+            continue
+
         valor = snapshot[tipo]
         if isinstance(valor, dict):
-            # Filtrar: quedarse solo con los PIDs vivos
             filtrado = {pid: v for pid, v in valor.items() if pid in pids_vivos}
             snapshot[tipo] = filtrado

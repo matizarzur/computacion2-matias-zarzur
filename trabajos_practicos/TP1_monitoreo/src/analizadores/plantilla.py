@@ -1,18 +1,16 @@
 """
 plantilla.py — Plantilla común para los analizadores por-PID.
 
-Los analizadores por-PID comparten la misma lógica de loop:
-  - tomar un PID de cola_pids
-  - correr una función de parseo sobre él
-  - publicar el resultado en cola_resultados
-
-Esta función encapsula ese patrón. Cada analizador concreto
-solo declara su nombre, su función de parseo, y su tipo de mensaje.
+Encapsula el loop compartido: tomar un PID de la cola, parsearlo con
+una función de procfs, y publicar el resultado en cola_resultados.
+Cada analizador concreto solo declara su nombre, tipo y función de parseo.
 """
 
 import os
 from typing import Callable
 from multiprocessing import Queue
+
+from senales import resetear_handlers_en_hijo
 
 
 def analizador_por_pid(
@@ -24,15 +22,8 @@ def analizador_por_pid(
 ) -> None:
     """
     Loop genérico para analizadores por-PID.
-
-    Args:
-        nombre: nombre para logs (ej: "Resumen", "Memoria").
-        tipo: etiqueta para el mensaje al agregador (ej: "resumen").
-        funcion_parseo: función de procfs que toma un pid y devuelve datos.
-                        Debe devolver None si el proceso murió o falló la lectura.
-        cola_pids: Queue de donde toma PIDs.
-        cola_resultados: Queue donde publica los resultados.
     """
+    resetear_handlers_en_hijo()
     print(f"[Analizador {nombre} PID={os.getpid()}] arrancó")
 
     while True:
