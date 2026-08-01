@@ -7,6 +7,9 @@ para leer el teclado con termios).
 
 Registra los handlers de señales; el display atiende las flags
 (shutdown, reload, dump, toggle verbose) en su loop.
+
+Los intervalos del recolector y del analizador de sistema son Value
+compartidos, ajustables en tiempo real con +/- desde el display.
 """
 
 import json
@@ -80,10 +83,16 @@ if __name__ == "__main__":
         snapshot = manager.dict()
         verbose = manager.Value("i", 0)
 
-        # Recolector
+        # NUEVO: Value compartidos para los intervalos ajustables.
+        # "d" = double (float). El display los modifica con +/-, y el
+        # recolector/sistema los leen en cada vuelta de su loop.
+        intervalo_recolector_val = manager.Value("d", intervalo_recolector)
+        intervalo_sistema_val = manager.Value("d", intervalo_sistema)
+
+        # Recolector (ahora recibe el Value, no un float)
         p_recolector = Process(
             target=recolector,
-            args=(colas_analizadores, cola_resultados, intervalo_recolector),
+            args=(colas_analizadores, cola_resultados, intervalo_recolector_val),
             name="recolector",
             daemon=True,
         )
@@ -106,10 +115,10 @@ if __name__ == "__main__":
             p.start()
             procesos_analizadores.append(p)
 
-        # Analizador de Sistema
+        # Analizador de Sistema (ahora recibe el Value, no un float)
         p_sistema = Process(
             target=analizador_sistema,
-            args=(cola_resultados, intervalo_sistema),
+            args=(cola_resultados, intervalo_sistema_val),
             name="analizador_sistema",
             daemon=True,
         )
@@ -124,10 +133,18 @@ if __name__ == "__main__":
         )
         p_agregador.start()
 
+        # Los intervalos ajustables van al display en un dict, para que
+        # sepa cuál ajustar según la vista activa.
+        intervalos = {
+            "recolector": intervalo_recolector_val,
+            "sistema": intervalo_sistema_val,
+        }
+
         # El display corre en el proceso PRINCIPAL (necesita la terminal real
         # para leer el teclado con termios). Bloquea hasta que el usuario
         # sale con 'q' o llega SIGINT/SIGTERM.
-        display(snapshot, Flags, cargar_config, dump_snapshot, verbose, intervalo=1.0)
+        display(snapshot, Flags, cargar_config, dump_snapshot, verbose,
+                intervalos, intervalo=1.0)
 
         # Salida limpia (se llega acá cuando el display retorna)
         print("[Main] terminando procesos hijos...")

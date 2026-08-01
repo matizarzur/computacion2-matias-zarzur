@@ -11,7 +11,8 @@ Vistas:
   5/s senales | 6/p scheduling | 7/g sistema
 Teclas:
   1-7 o r/m/f/t/s/p/g : cambiar vista
-  q : salir
+  + / -               : ajustar el intervalo de refresco de la vista activa
+  q                   : salir
 """
 
 import sys
@@ -38,12 +39,35 @@ TECLAS_VISTAS = {
     "7": "sistema", "g": "sistema",
 }
 
+# Límites para el ajuste de intervalo (segundos).
+INTERVALO_MIN = 0.5
+INTERVALO_MAX = 30.0
+INTERVALO_PASO = 0.5
+
 
 class EstadoDisplay:
     """Estado mutable compartido entre el thread de teclado y el loop de render."""
-    def __init__(self):
+    def __init__(self, intervalos):
         self.vista_activa = "resumen"
         self.salir = False
+        self.intervalos = intervalos   # dict: "recolector" / "sistema" -> Value
+
+
+def _ajustar_intervalo(estado: EstadoDisplay, delta: float) -> None:
+    """
+    Ajusta el intervalo de la vista activa sumándole delta (con límites).
+
+    La vista Sistema ajusta su propio Value; el resto de las vistas
+    (que dependen del recolector) ajustan el Value del recolector.
+    """
+    if estado.vista_activa == "sistema":
+        val = estado.intervalos["sistema"]
+    else:
+        val = estado.intervalos["recolector"]
+
+    nuevo = val.value + delta
+    nuevo = max(INTERVALO_MIN, min(INTERVALO_MAX, nuevo))
+    val.value = nuevo
 
 
 def leer_teclado(estado: EstadoDisplay) -> None:
@@ -56,7 +80,6 @@ def leer_teclado(estado: EstadoDisplay) -> None:
     try:
         tty.setcbreak(fd)
         while not estado.salir:
-            # Esperar hasta 0.2s a que haya una tecla lista
             listo, _, _ = select.select([sys.stdin], [], [], 0.2)
             if not listo:
                 continue
@@ -65,12 +88,15 @@ def leer_teclado(estado: EstadoDisplay) -> None:
                 estado.salir = True
             elif ch in TECLAS_VISTAS:
                 estado.vista_activa = TECLAS_VISTAS[ch]
+            elif ch == "+":
+                _ajustar_intervalo(estado, +INTERVALO_PASO)
+            elif ch == "-":
+                _ajustar_intervalo(estado, -INTERVALO_PASO)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, viejo)
 
 
 def _formatear_sistema(datos: dict) -> Panel:
-    """Arma el panel superior con info global del sistema."""
     if not datos:
         return Panel("Sin datos del sistema todavia", title="Sistema")
 
@@ -120,7 +146,6 @@ def _tabla_resumen(procesos: dict) -> Table:
 
 
 def _tabla_generica(procesos: dict, titulo: str) -> Table:
-    """Vista simple para tipos que aun no tienen tabla dedicada."""
     tabla = Table(title=titulo, expand=True)
     tabla.add_column("PID", justify="right", style="cyan")
     tabla.add_column("Datos", style="white", overflow="fold")
@@ -131,12 +156,11 @@ def _tabla_generica(procesos: dict, titulo: str) -> Table:
 
 
 def _render(snapshot: dict, estado: EstadoDisplay) -> Layout:
-    """Arma el layout completo: sistema arriba, tabla de la vista abajo, ayuda al pie."""
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=5),
         Layout(name="body"),
-        Layout(name="footer", size=3),
+        Layout(name="footer", size=5),
     )
 
     sistema = snapshot.get("sistema", {})
@@ -152,27 +176,38 @@ def _render(snapshot: dict, estado: EstadoDisplay) -> Layout:
     else:
         layout["body"].update(_tabla_generica(procesos, f"Vista: {vista}"))
 
+    # Intervalo actual de la vista activa (para mostrarlo en el footer).
+    if vista == "sistema":
+        intervalo_actual = estado.intervalos["sistema"].value
+    else:
+        intervalo_actual = estado.intervalos["recolector"].value
+
     ayuda = Text(
         "1/r resumen  2/m memoria  3/f fds  4/t threads  "
-        "5/s senales  6/p scheduling  7/g sistema  |  q salir",
+        "5/s senales  6/p scheduling  7/g sistema\n"
+        "+/- ajustar intervalo  |  q salir",
         style="dim",
     )
-    ayuda.append(f"\nVista activa: {vista}", style="bold yellow")
+    ayuda.append(
+        f"\nVista activa: {vista}  |  intervalo: {intervalo_actual:.1f}s",
+        style="bold yellow",
+    )
     layout["footer"].update(Panel(ayuda, border_style="dim"))
 
     return layout
 
 
-def display(snapshot, flags, cargar_config, dump_snapshot, verbose, intervalo=1.0):
+def display(snapshot, flags, cargar_config, dump_snapshot, verbose,
+            intervalos, intervalo=1.0):
     """
     Loop del display. Corre en el proceso PRINCIPAL (necesita la terminal
     real para leer el teclado con termios).
 
-    Ademas de renderizar, atiende las flags de senales:
-      recargar (SIGHUP), dump (SIGUSR1), toggle_verbose (SIGUSR2),
-      terminar (SIGINT/SIGTERM).
+    Args:
+        intervalos: dict con los Value de intervalo ("recolector"/"sistema"),
+                    ajustables con +/-.
     """
-    estado = EstadoDisplay()
+    estado = EstadoDisplay(intervalos)
 
     hilo_teclado = threading.Thread(target=leer_teclado, args=(estado,), daemon=True)
     hilo_teclado.start()
@@ -195,5 +230,4 @@ def display(snapshot, flags, cargar_config, dump_snapshot, verbose, intervalo=1.
 
             live.update(_render(snapshot, estado))
 
-    # Si salimos por 'q', avisar al main que hay que terminar
     flags.terminar.set()
