@@ -373,6 +373,12 @@ def listar_threads(pid: int) -> list[int] | None:
         return None
     return [int(t) for t in entries if t.isdigit()]
 
+@dataclass
+class FileDescriptor:
+    """Un file descriptor abierto por el proceso."""
+    numero: int         # el número del FD (0, 1, 2, ...)
+    destino: str        # a dónde apunta el symlink
+    tipo: str           # file / socket / pipe / tty / anon / device / desconocido
 
 def listar_fds(pid: int) -> list[int] | None:
     """
@@ -385,6 +391,57 @@ def listar_fds(pid: int) -> list[int] | None:
     except (FileNotFoundError, PermissionError):
         return None
     return [int(fd) for fd in entries if fd.isdigit()]
+
+def _inferir_tipo_fd(destino: str) -> str:
+    """Infiere el tipo de un FD a partir del destino de su symlink."""
+    if destino.startswith("socket:"):
+        return "socket"
+    if destino.startswith("pipe:"):
+        return "pipe"
+    if destino.startswith("anon_inode:"):
+        return "anon"
+    if destino.startswith("/dev/pts/") or destino.startswith("/dev/tty"):
+        return "tty"
+    if destino.startswith("/dev/"):
+        return "device"
+    if destino.startswith("/"):
+        return "file"
+    return "desconocido"
+
+
+def resolver_fds(pid: int) -> list[FileDescriptor] | None:
+    """
+    Lista los FDs del proceso resolviendo el destino de cada symlink
+    (/proc/<pid>/fd/) e infiriendo su tipo.
+
+    Devuelve None si el proceso no existe o no tenemos permisos.
+    Un FD que se cierra entre el listado y el readlink (TOCTOU) se saltea.
+    """
+    base = PROC / str(pid) / "fd"
+    try:
+        entries = os.listdir(base)
+    except (FileNotFoundError, PermissionError):
+        return None
+
+    resultado = []
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        numero = int(entry)
+        try:
+            # readlink lee A DÓNDE APUNTA el symlink, sin abrir el destino.
+            destino = os.readlink(base / entry)
+        except (FileNotFoundError, PermissionError, OSError):
+            # El FD se cerró entre el listdir y el readlink (TOCTOU): lo salteamos.
+            continue
+        resultado.append(FileDescriptor(
+            numero=numero,
+            destino=destino,
+            tipo=_inferir_tipo_fd(destino),
+        ))
+
+    resultado.sort(key=lambda fd: fd.numero)   # orden estable por número de FD
+    return resultado
 
 @dataclass
 class ProcessMemoria:

@@ -282,6 +282,30 @@ def _tabla_memoria(procesos: dict) -> Table:
         )
     return tabla
 
+def _tabla_fds(procesos: dict) -> Table:
+    """Vista FDs: por proceso, cantidad de FDs, tipos y ejemplos de destinos."""
+    tabla = Table(title="File descriptors por proceso", expand=True)
+    tabla.add_column("PID", justify="right", style="cyan")
+    tabla.add_column("# FDs", justify="right", style="green")
+    tabla.add_column("Tipos", style="yellow")
+    tabla.add_column("Ejemplos", style="white", overflow="ellipsis",
+                     no_wrap=True, max_width=70)
+
+    for pid in sorted(procesos.keys())[:MAX_FILAS]:
+        fds = procesos[pid]
+
+        # Contar cuántos FDs hay de cada tipo
+        conteo = {}
+        for fd in fds:
+            conteo[fd.tipo] = conteo.get(fd.tipo, 0) + 1
+        tipos_str = ", ".join(f"{t}:{c}" for t, c in sorted(conteo.items()))
+
+        # Mostrar los primeros destinos como ejemplo
+        ejemplos = "  ".join(f"{fd.numero}->{fd.destino}" for fd in fds[:3])
+
+        tabla.add_row(str(pid), str(len(fds)), tipos_str, ejemplos)
+    return tabla
+
 def _tabla_generica(procesos: dict, titulo: str) -> Table:
     tabla = Table(title=titulo, expand=True)
     tabla.add_column("PID", justify="right", style="cyan")
@@ -428,6 +452,8 @@ def _render(snapshot: dict, estado: EstadoDisplay) -> Layout:
         layout["body"].update(_tabla_resumen(procesos, estado))
     elif vista == "memoria":
         layout["body"].update(_tabla_memoria(procesos))
+    elif vista == "fds":
+        layout["body"].update(_tabla_fds(procesos))
     elif vista == "sistema":
         layout["body"].update(Panel(str(sistema), title="Sistema (detalle)"))
     elif vista == "senales":
