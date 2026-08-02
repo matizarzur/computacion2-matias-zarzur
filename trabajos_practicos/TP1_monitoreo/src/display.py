@@ -33,7 +33,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.layout import Layout
 from rich.text import Text
-
+from procfs import decodificar_senales
 
 TECLAS_VISTAS = {
     "1": "resumen", "r": "resumen",
@@ -261,6 +261,71 @@ def _tabla_generica(procesos: dict, titulo: str) -> Table:
         tabla.add_row(str(pid), str(procesos[pid])[:120])
     return tabla
 
+def _abreviar(nombres: list) -> str:
+    """
+    Junta una lista de nombres de señales sacándoles el prefijo 'SIG'
+    para ahorrar espacio en la tabla (ej: 'SIGTERM' -> 'TERM').
+    Si la lista está vacía, devuelve '-'.
+    """
+    if not nombres:
+        return "-"
+    return ", ".join(n[3:] if n.startswith("SIG") else n for n in nombres)
+
+
+def _tabla_senales(procesos: dict, pin_pid=None) -> Table:
+    """
+    Vista Señales: por cada proceso, la CANTIDAD de señales en cada máscara.
+    El detalle completo (nombres) se ve en el panel de abajo al pinear (Enter).
+    """
+    tabla = Table(title="Señales por proceso (cantidad por mascara)", expand=True)
+    tabla.add_column("PID", justify="right", style="cyan")
+    tabla.add_column("Pendientes", justify="right")
+    tabla.add_column("Pend.Comp", justify="right")
+    tabla.add_column("Bloqueadas", justify="right", style="yellow")
+    tabla.add_column("Ignoradas", justify="right", style="blue")
+    tabla.add_column("Con handler", justify="right", style="green")
+
+    for pid in sorted(procesos.keys())[:MAX_FILAS]:
+        s = procesos[pid]
+        estilo = "reverse" if pid == pin_pid else ""
+        tabla.add_row(
+            str(pid),
+            str(len(decodificar_senales(s.sig_pnd))),
+            str(len(decodificar_senales(s.shd_pnd))),
+            str(len(decodificar_senales(s.sig_blk))),
+            str(len(decodificar_senales(s.sig_ign))),
+            str(len(decodificar_senales(s.sig_cgt))),
+            style=estilo,
+        )
+    return tabla
+
+def _panel_detalle_senales(procesos: dict, pin_pid) -> Panel:
+    """
+    Panel con el detalle completo de las 5 máscaras del proceso pineado,
+    con los nombres de señales decodificados y abreviados.
+    """
+    s = procesos.get(pin_pid)
+    if s is None:
+        return Panel(
+            f"El proceso pineado ({pin_pid}) ya no esta en esta vista.",
+            title="Detalle de señales", border_style="dim",
+        )
+
+    texto = Text()
+    texto.append(f"Proceso pineado {pin_pid}\n\n", style="bold cyan")
+    filas = [
+        ("Pendientes", s.sig_pnd),
+        ("Pend.Comp", s.shd_pnd),
+        ("Bloqueadas", s.sig_blk),
+        ("Ignoradas", s.sig_ign),
+        ("Con handler", s.sig_cgt),
+    ]
+    for etiqueta, mascara in filas:
+        nombres = _abreviar(decodificar_senales(mascara))
+        texto.append(f"  {etiqueta:14}", style="bold yellow")
+        texto.append(f"{nombres}\n", style="white")
+    return Panel(texto, title="Detalle de señales (proceso pineado)",
+                 border_style="green")
 
 def _formatear_sistema(datos: dict) -> Panel:
     if not datos:
@@ -334,6 +399,16 @@ def _render(snapshot: dict, estado: EstadoDisplay) -> Layout:
         layout["body"].update(_tabla_resumen(procesos, estado))
     elif vista == "sistema":
         layout["body"].update(Panel(str(sistema), title="Sistema (detalle)"))
+    elif vista == "senales":
+        if estado.pin_pid is not None:
+            # Dividir el cuerpo: tabla arriba, detalle del pineado abajo
+            layout["body"].split_column(
+                Layout(_tabla_senales(procesos, estado.pin_pid), name="tabla"),
+                Layout(_panel_detalle_senales(procesos, estado.pin_pid),
+                       name="detalle", size=9),
+            )
+        else:
+            layout["body"].update(_tabla_senales(procesos))
     else:
         layout["body"].update(_tabla_generica(procesos, f"Vista: {vista}"))
 

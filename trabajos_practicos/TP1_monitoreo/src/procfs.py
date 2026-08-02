@@ -10,6 +10,7 @@ tipadas para que los analizadores no repitan lógica de parseo.
 import os
 from dataclasses import dataclass
 from pathlib import Path
+import signal
 
 PROC = Path("/proc")
 
@@ -475,6 +476,26 @@ def leer_signals(pid: int) -> ProcessSignals | None:
         sig_cgt=campos["SigCgt"],
     )
 
+def decodificar_senales(mascara: int) -> list[str]:
+    """
+    Convierte una máscara de señales (int) a la lista de nombres legibles.
+
+    Cada bit de la máscara representa una señal: el bit 0 es la señal 1
+    (SIGHUP), el bit 1 la señal 2 (SIGINT), etc. Por eso el número de
+    señal es siempre el número de bit + 1.
+
+    Las señales real-time (34 en adelante) no tienen nombre en el módulo
+    signal, así que las mostramos como "SIG<N>".
+    """
+    nombres = []
+    for bit in range(64):                    # las máscaras son de 64 bits
+        if mascara & (1 << bit):             # ¿está encendido el bit?
+            numero = bit + 1                  # bit 0 -> señal 1
+            try:
+                nombres.append(signal.Signals(numero).name)
+            except ValueError:
+                nombres.append(f"SIG{numero}")   # señal sin nombre conocido
+    return nombres
 
 def leer_stat_sistema() -> SistemaStat | None:
     """
