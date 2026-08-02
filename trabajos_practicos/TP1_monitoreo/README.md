@@ -25,13 +25,14 @@ procesos del host.
 
 ```bash
 docker compose up --build -d
-docker compose exec monitor bash
+docker compose exec -it monitor bash
 cd /app
 python3 src/main.py
 ```
 
-Una vez dentro de la TUI, se cambia de vista con las teclas `1`–`7` (o las
-letras `r/m/f/t/s/p/g`) y se sale con `q`.
+Una vez dentro de la TUI, se cambia de vista con las teclas `1`-`7` (o las
+letras `r/m/f/t/s/p/g`) y se sale con `q`. Con `h` o `?` se muestra la ayuda
+con todas las teclas disponibles.
 
 ---
 
@@ -50,7 +51,7 @@ El sistema está compuesto por 10 procesos que colaboran:
         ▼          ▼          ▼       ▼       ▼          ▼          │
    ┌─────────┐┌─────────┐┌────────┐┌───────┐┌────────┐┌──────────┐ │
    │Resumen  ││Memoria  ││FDs     ││Threads││Señales ││Scheduling│ │
-   │(status) ││(maps)   ││(fd/)   ││(task/)││(status)││(stat)    │ │
+   │(status) ││(status) ││(fd/)   ││(task/)││(status)││(stat)    │ │
    └────┬────┘└────┬────┘└───┬────┘└───┬───┘└───┬────┘└────┬─────┘ │
         │          │         │         │        │          │       │
         └──────────┴─────────┴────┬────┴────────┴──────────┘       │
@@ -99,7 +100,52 @@ La comunicación usa dos mecanismos de `multiprocessing`:
 
 ---
 
-## 3. Decisiones de diseño
+## 3. Las siete vistas
+
+El monitor tiene siete vistas alternables, cada una alimentada por su analizador:
+
+1. **Resumen** (`1`/`r`): PID, usuario (resuelto desde el UID), estado, RSS,
+   threads y comando completo (`cmdline`). Es la vista central: soporta
+   navegación, filtros, orden y pin (ver sección 4).
+2. **Memoria** (`2`/`m`): desglose de memoria por proceso en MB — VmSize, RSS,
+   HWM (pico histórico), Data, Stk, Lib, Swap — más los page faults menores y
+   mayores.
+3. **FDs** (`3`/`f`): file descriptors por proceso, con la cantidad total, el
+   desglose por tipo (file, socket, pipe, tty, anon, device) y ejemplos de
+   destinos resueltos con `readlink`.
+4. **Threads** (`4`/`t`): los threads (LWPs) de cada proceso leídos de
+   `/proc/<pid>/task/`.
+5. **Señales** (`5`/`s`): las cinco máscaras de señales de cada proceso
+   (pendientes, pendientes compartidas, bloqueadas, ignoradas, con handler),
+   mostradas como cantidad. Al pinear un proceso (Enter en Resumen) se ve el
+   detalle completo con los nombres de señales decodificados.
+6. **Scheduling** (`6`/`p`): prioridad, nice, política de scheduling, tiempos de
+   CPU (utime/stime) de `/proc/<pid>/stat`.
+7. **Sistema** (`7`/`g`): información global — CPU acumulada, memoria, load
+   average, uptime, context switches y contadores de `/proc/stat`.
+
+---
+
+## 4. Interacción con el teclado
+
+El monitor se controla enteramente por teclado. Las teclas se leen en un thread
+separado con `select()` para no bloquear el refresco:
+
+- **`1`-`7`** o `r/m/f/t/s/p/g`: cambiar de vista.
+- **Flechas arriba/abajo**: navegar por la lista de procesos (vista Resumen).
+- **`Enter`**: fijar (pin) o soltar el proceso seleccionado. El proceso pineado
+  se resalta y, en la vista Señales, se muestra su detalle completo.
+- **`c`**: cambiar el criterio de orden de la vista Resumen (PID / RSS / Threads).
+- **`/`**: filtrar la vista Resumen por nombre de comando.
+- **`u`**: filtrar la vista Resumen por UID.
+- **`+` / `-`**: ajustar en tiempo real el intervalo de refresco de la vista
+  activa (ver la nota sobre `Value` en la sección 5).
+- **`h` / `?`**: mostrar u ocultar el panel de ayuda.
+- **`q`**: salir (shutdown limpio).
+
+---
+
+## 5. Decisiones de diseño
 
 ### ¿Por qué una cola por analizador y no una cola compartida?
 
@@ -122,8 +168,16 @@ dinámica y anidada como esta, `Manager.dict` es la herramienta adecuada: expone
 un diccionario compartido entre procesos, aunque a costa de ser más lento (cada
 acceso pasa por un proceso servidor y se serializa).
 
-Se usa `Value` en un caso puntual: el flag de modo verbose (`manager.Value("i", 0)`),
-que es un simple entero 0/1. Ahí `Value` es lo correcto por ser un tipo simple.
+### ¿Por qué `Value` para los intervalos ajustables?
+
+Los intervalos de refresco del recolector y del analizador de sistema son
+`multiprocessing.Value` compartidos. Cuando el usuario aprieta `+`/`-` en el
+display, este modifica el `Value`, y el proceso correspondiente lee el nuevo
+valor en cada vuelta de su loop. Se usa `Value` (y no pasar un número) porque un
+número se copia al crear el proceso hijo, quedando como variables independientes;
+el `Value` vive en memoria compartida, así que ambos procesos ven el mismo dato.
+Es el mecanismo correcto para un dato simple (un float) que se comparte entre dos
+procesos. También se usa `Value` para el flag de modo verbose.
 
 ### ¿Cómo se manejan las race conditions?
 
@@ -140,31 +194,48 @@ detecta. Por eso el agregador usa un patrón de leer-modificar-reasignar: toma e
 sub-diccionario, lo modifica localmente, y lo reasigna completo
 (`snapshot["resumen"] = sub_dict`), lo que sí dispara la propagación.
 
-### ¿Por qué los intervalos por defecto?
+### ¿Por qué el ordenamiento y los filtros solo en Resumen?
+
+La navegación, el ordenamiento configurable y los filtros operan solo sobre la
+vista Resumen, que es la vista "central" con una fila por proceso. Las otras
+vistas muestran datos de dimensiones distintas (memoria, señales, FDs) donde
+ordenar por "threads" o filtrar no tiene el mismo sentido, así que se mantienen
+con orden estable por PID. Es una decisión de coherencia: la vista Resumen es la
+de exploración, las demás son de inspección.
+
+### ¿Por qué los intervalos por defecto de 2 segundos?
 
 El recolector y el analizador de sistema refrescan cada 2 segundos por defecto,
-configurable desde `config.json`. Dos segundos es un equilibrio entre ver cambios
-razonablemente rápido y no saturar la CPU releyendo `/proc` constantemente. Las
-vistas más pesadas de leer (como Memoria, que abre `/proc/<pid>/maps` con miles
-de líneas por proceso) toleran bien este intervalo porque cada analizador corre
-en su propio proceso y no bloquea a los demás.
+configurable desde `config.json` y ajustable en runtime con `+`/`-`. Dos segundos
+es un equilibrio entre ver cambios razonablemente rápido y no saturar la CPU
+releyendo `/proc` constantemente.
 
 ---
 
-## 4. Conceptos del curso aplicados
+## 6. Conceptos del curso aplicados
 
 - **`/proc` como pseudo-filesystem (clase 3)**: todo el proyecto se basa en que
   `/proc` es virtual, generado por el kernel al vuelo. Las funciones de
-  `procfs.py` leen `/proc/<pid>/status`, `/stat`, `/maps`, etc.
+  `procfs.py` leen `/proc/<pid>/status`, `/stat`, `/maps`, `/fd/`, `/task/`, etc.
 
 - **PID vs TID / threads como LWPs (clase 10)**: la vista Threads lista los TIDs
   leyendo `/proc/<pid>/task/`, donde cada subcarpeta es un thread (Light Weight
   Process). El TID del primer thread coincide con el PID del proceso.
 
-- **Zombies y estados de proceso (clase 4)**: el estado de cada proceso sale del
-  campo State de `/proc/<pid>/status`. Un zombie (estado Z) es un proceso
-  terminado cuyo padre todavía no llamó a `wait()`, concepto visto en la clase de
-  fork/exec/wait.
+- **Señales y máscaras (clase 6)**: la vista Señales decodifica las máscaras de
+  bits de `/proc/<pid>/status` (SigBlk, SigIgn, SigCgt, etc.) a nombres legibles.
+  Cada bit de la máscara representa una señal: el bit N corresponde a la señal
+  N+1. Se recorren los bits con operaciones AND (`mascara & (1 << bit)`) y se
+  traduce el número al nombre con el módulo `signal`.
+
+- **File descriptors como symlinks (clase 3)**: la vista FDs usa `os.readlink`
+  sobre `/proc/<pid>/fd/<n>` para leer a dónde apunta cada descriptor sin abrir
+  el destino, y clasifica el tipo según el prefijo (socket:, pipe:, /dev/...).
+
+- **cmdline y bytes nulos**: el comando completo se lee de `/proc/<pid>/cmdline`,
+  donde los argumentos vienen separados por bytes nulos (`\0`) que se reemplazan
+  por espacios. Los procesos kernel tienen cmdline vacío y se muestran con el
+  nombre entre corchetes.
 
 - **Señales y async-signal-safety (clase 6)**: el monitor maneja SIGINT, SIGTERM,
   SIGHUP, SIGUSR1 y SIGUSR2. Los handlers son mínimos: solo levantan un flag
@@ -173,13 +244,16 @@ en su propio proceso y no bloquea a los demás.
   instrucción.
 
 - **Pipes / IPC (clase 5) y Multiprocessing (clases 8-9)**: la comunicación entre
-  procesos usa `Queue` (buffer sincronizado con locks internos) y `Manager.dict`
-  (memoria compartida cliente-servidor).
+  procesos usa `Queue` (buffer sincronizado con locks internos), `Manager.dict`
+  (memoria compartida cliente-servidor) y `Value` (memoria compartida para tipos
+  simples).
 
 - **TOCTOU (time-of-check-to-time-of-use)**: un proceso puede morir entre el
   momento en que el recolector lo lista y el momento en que un analizador intenta
   leer su `/proc/<pid>/*`. Por eso todas las funciones de lectura por-PID capturan
-  `FileNotFoundError` y `PermissionError`.
+  `FileNotFoundError` y `PermissionError`. En la resolución de FDs, un descriptor
+  puede cerrarse entre el listado y el `readlink`, y se saltea individualmente sin
+  descartar el resto.
 
 - **Herencia de handlers en fork (clase 4 + 6)**: los procesos hijos heredan los
   handlers de señales del padre. Como esto impedía que los hijos murieran ante
@@ -188,42 +262,30 @@ en su propio proceso y no bloquea a los demás.
 
 ---
 
-## 5. Limitaciones conocidas
+## 7. Limitaciones conocidas
 
-Este proyecto prioriza una arquitectura multiproceso sólida y las señales sobre
-la completitud de cada vista. Las siguientes funcionalidades no están
-implementadas y se conocen como pendientes:
+- **CPU% por proceso**: no se calcula el porcentaje de CPU instantáneo de cada
+  proceso. Hacerlo requiere comparar dos lecturas consecutivas de los jiffies
+  acumulados (`utime + stime` de `/proc/<pid>/stat`), dividiendo el delta por el
+  tiempo transcurrido y por `CLK_TCK`. Eso obliga a mantener estado entre pasadas
+  (un historial `{pid: (jiffies, timestamp)}`). Todos los analizadores del monitor
+  son deliberadamente **sin estado** —leen `/proc` y publican el dato—, y meter
+  estado en uno solo rompía esa consistencia. Se documenta como mejora futura; el
+  mecanismo está entendido y la vista Sistema sí muestra los tiempos de CPU
+  globales acumulados.
 
-**Navegación de la TUI:**
-- No hay navegación con flechas `↑`/`↓` por la lista de procesos.
-- No está implementado el pin de un proceso con `Enter`.
-- No hay filtros por nombre (`/`) ni por usuario (`u`).
-- No hay ordenamiento configurable (`c`).
-- No está el ajuste de intervalo en runtime con `+`/`-`.
+- **Info detallada por thread**: la vista Threads lista los TIDs pero no expande
+  el estado, tiempos de CPU ni context switches individuales de cada thread.
 
-**Datos de `/proc`:**
-- No se calcula CPU% (requiere delta de jiffies entre dos lecturas).
-- No se lee `cmdline` (comando completo con argumentos).
-- Del status solo se extrae VmRSS; faltan VmSize, VmData, VmStk, VmExe, VmLib,
-  VmHWM, VmSwap.
-- No se resuelven los destinos de los FDs con `readlink` (solo se listan los
-  números).
-- Las máscaras de señales se muestran como enteros crudos, sin decodificar a
-  nombres legibles (SIGTERM, SIGINT, etc.).
-- No se leen context switches voluntarios/involuntarios, RT priority, CPU
-  affinity ni SID/PGID.
-- No se calcula el top 3 por CPU/memoria ni el conteo de zombies.
+- **Top 3 y zombies en Sistema**: la vista Sistema muestra los contadores globales
+  pero no calcula el top 3 de procesos por CPU/memoria ni el conteo de zombies.
 
-**Presentación:**
-- Las vistas de Memoria, FDs, Threads, Señales y Scheduling muestran los datos
-  crudos (el `str()` de cada estructura). Solo Resumen y Sistema tienen formato
-  con columnas dedicadas.
-- La lista de procesos se limita a los primeros 25 por vista, para que entre en
-  pantalla.
+- **Límite de filas**: cada vista muestra los primeros 25 procesos para que entre
+  en pantalla. Los filtros de la vista Resumen permiten acotar la lista.
 
 ---
 
-## 6. Cómo correr y testear
+## 8. Cómo correr y testear
 
 ### Requisitos
 
@@ -236,12 +298,15 @@ implementadas y se conocen como pendientes:
 ```bash
 # Desde la carpeta TP1_monitoreo/
 docker compose up --build -d
-docker compose exec monitor bash
+docker compose exec -it monitor bash
 
 # Ya dentro del contenedor:
 cd /app
 python3 src/main.py
 ```
+
+El `-it` en el `exec` es importante: el display lee el teclado con `termios`, que
+necesita una terminal interactiva real.
 
 ### Probar las señales
 
@@ -249,7 +314,7 @@ Con el monitor corriendo, desde otra terminal entrar al contenedor y mandarle
 señales (reemplazar `<PID>` por el que imprime el monitor al arrancar):
 
 ```bash
-docker compose exec monitor bash
+docker compose exec -it monitor bash
 kill -HUP  <PID>    # recarga config.json
 kill -USR1 <PID>    # vuelca el snapshot a dump_<timestamp>.json
 kill -USR2 <PID>    # alterna modo verbose
@@ -267,7 +332,7 @@ cat /app/dump_*.json
 
 ---
 
-## 7. Decisiones sobre la TUI
+## 9. Decisiones sobre la TUI
 
 Se eligió **`rich`** sobre `curses` por dos razones: produce tablas y paneles
 con muy poco código, y su clase `Live` maneja el refresco de pantalla
@@ -282,9 +347,13 @@ display al proceso principal, tiene acceso a la terminal real y el teclado
 funciona. El teclado se lee en un thread aparte usando `select()` para no
 bloquear el loop de renderizado.
 
+Un detalle de `rich`: los corchetes tienen significado especial (markup de
+estilos), así que el comando de los procesos kernel —que se muestra como
+`[kthreadd]`— se escapa con `rich.markup.escape` para que se vea literal.
+
 ---
 
-## 8. Configuración de Docker
+## 10. Configuración de Docker
 
 El `docker-compose.yml` incluye tres opciones clave para poder leer los procesos
 del host desde dentro del contenedor:
@@ -305,21 +374,23 @@ que la TUI sea interactiva.
 
 ---
 
-## 9. Lo que aprendí
+## 11. Lo que aprendí
 
 Lo que más me marcó de este TP fue entender de verdad qué significa que los
 procesos no comparten memoria. Venía pensando en variables globales como algo
 que "está ahí para todos", y acá tuve que aceptar que cada proceso vive en su
 propio espacio y que compartir un dato implica serializarlo y mandarlo por un
 canal. El `Manager.dict` me hizo click cuando entendí que es literalmente otro
-proceso haciendo de servidor de datos.
+proceso haciendo de servidor de datos, y el `Value` cuando vi que un número
+copiado a un hijo deja de estar conectado con el del padre.
 
 El otro gran aprendizaje fueron las señales. Al principio no entendía por qué el
 handler tenía que ser tan corto, hasta que vi el problema del deadlock: si el
 handler intenta tomar un lock que el main ya tenía tomado justo cuando lo
 interrumpió, el programa se cuelga para siempre. Eso me hizo entender por qué el
 patrón correcto es que el handler solo levante una bandera y el trabajo real lo
-haga el loop principal en un punto seguro.
+haga el loop principal en un punto seguro. Decodificar las máscaras de señales a
+nombres también me obligó a pensar en binario: cada bit de un número es una señal.
 
 Por último, pelear con los permisos de Docker para leer `/proc` me enseñó que en
 Linux hay varias capas de seguridad independientes (namespaces, capabilities,
