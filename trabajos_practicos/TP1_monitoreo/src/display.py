@@ -33,6 +33,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.layout import Layout
 from rich.text import Text
+from rich.markup import escape
 from procfs import decodificar_senales
 
 TECLAS_VISTAS = {
@@ -213,11 +214,11 @@ def _tabla_resumen(procesos: dict, estado: EstadoDisplay) -> Table:
     tabla = Table(title="Resumen de procesos", expand=True)
     tabla.add_column("", width=2)   # marcador de selección/pin
     tabla.add_column("PID", justify="right", style="cyan")
-    tabla.add_column("Nombre", style="white")
+    tabla.add_column("Usuario", style="magenta")
     tabla.add_column("Estado", justify="center")
     tabla.add_column("RSS (MB)", justify="right", style="green")
     tabla.add_column("Threads", justify="right")
-    tabla.add_column("UID", justify="right")
+    tabla.add_column("Comando", style="white", overflow="ellipsis", no_wrap=True, max_width=60)
 
     items = _filtrar_y_ordenar(procesos, estado)
 
@@ -246,8 +247,8 @@ def _tabla_resumen(procesos: dict, estado: EstadoDisplay) -> Table:
         estilo = "reverse" if i == estado.seleccion else ""
 
         tabla.add_row(
-            marca, str(st.pid), st.name, st.state,
-            str(rss_mb), str(st.threads), str(st.uid),
+            marca, str(st.pid), st.usuario, st.state,
+            str(rss_mb), str(st.threads), escape(st.cmdline),
             style=estilo,
         )
     return tabla

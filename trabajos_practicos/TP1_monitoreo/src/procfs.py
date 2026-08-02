@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 import signal
+import pwd
 
 PROC = Path("/proc")
 
@@ -24,6 +25,8 @@ class ProcessStatus:
     uid: int
     threads: int
     vm_rss: int | None   # None para procesos kernel (no tienen memoria de usuario)
+    usuario: str         # nombre de usuario resuelto desde el UID
+    cmdline: str         # comando completo con argumentos
 
 
 def listar_pids() -> list[int]:
@@ -89,6 +92,9 @@ def leer_status(pid: int) -> ProcessStatus | None:
             threads = int(valor)
         elif clave == "VmRSS":
             vm_rss = int(valor.split()[0])   # "13548 kB" -> 13548
+    
+    usuario = leer_usuario(uid)
+    cmdline = leer_cmdline(pid_leido) or name
 
     return ProcessStatus(
         pid=pid_leido,
@@ -98,6 +104,8 @@ def leer_status(pid: int) -> ProcessStatus | None:
         uid=uid,
         threads=threads,
         vm_rss=vm_rss,
+        usuario=usuario,
+        cmdline=cmdline,
     )
 
 # ============================================================
@@ -267,6 +275,41 @@ def leer_comm(pid: int) -> str | None:
     except (FileNotFoundError, PermissionError):
         return None
 
+def leer_cmdline(pid: int) -> str | None:
+    """
+    Lee /proc/<pid>/cmdline — el comando completo con sus argumentos.
+
+    En el archivo los argumentos vienen separados por bytes nulos ('\\0').
+    Los reemplazamos por espacios. Si el archivo está vacío (procesos kernel),
+    devolvemos el nombre corto entre corchetes, igual que htop.
+    """
+    ruta = PROC / str(pid) / "cmdline"
+    try:
+        with open(ruta, "rb") as f:      # "rb" = leer en binario (son bytes crudos)
+            crudo = f.read()
+    except (FileNotFoundError, PermissionError):
+        return None
+
+    if not crudo:
+        # cmdline vacío = proceso kernel. Mostramos su comm entre corchetes.
+        comm = leer_comm(pid)
+        return f"[{comm}]" if comm else ""
+
+    # Los argumentos vienen separados por \0. Los pasamos a espacios.
+    texto = crudo.replace(b"\x00", b" ").decode("utf-8", errors="replace")
+    return texto.strip()
+
+def leer_usuario(uid: int) -> str:
+    """
+    Traduce un UID numérico al nombre de usuario (ej: 0 -> "root").
+
+    Usa /etc/passwd a través del módulo pwd. Si el UID no existe en la
+    base de usuarios, devuelve el número como string.
+    """
+    try:
+        return pwd.getpwuid(uid).pw_name
+    except KeyError:
+        return str(uid)
 
 def leer_stat(pid: int) -> ProcessStat | None:
     """
