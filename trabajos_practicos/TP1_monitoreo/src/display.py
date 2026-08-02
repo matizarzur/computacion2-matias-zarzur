@@ -209,6 +209,11 @@ def _filtrar_y_ordenar(procesos: dict, estado: EstadoDisplay) -> list:
 
     return items
 
+def _mb(valor_kb) -> str:
+    """Formatea un valor en kB a MB con un decimal. Maneja None (kernel)."""
+    if valor_kb is None:
+        return "-"
+    return f"{valor_kb / 1024:.1f}"
 
 def _tabla_resumen(procesos: dict, estado: EstadoDisplay) -> Table:
     tabla = Table(title="Resumen de procesos", expand=True)
@@ -253,6 +258,29 @@ def _tabla_resumen(procesos: dict, estado: EstadoDisplay) -> Table:
         )
     return tabla
 
+def _tabla_memoria(procesos: dict) -> Table:
+    """Vista Memoria: desglose Vm* (en MB) y page faults por proceso."""
+    tabla = Table(title="Memoria por proceso (MB)", expand=True)
+    tabla.add_column("PID", justify="right", style="cyan")
+    tabla.add_column("VmSize", justify="right")
+    tabla.add_column("RSS", justify="right", style="green")
+    tabla.add_column("HWM", justify="right")
+    tabla.add_column("Data", justify="right")
+    tabla.add_column("Stk", justify="right")
+    tabla.add_column("Lib", justify="right")
+    tabla.add_column("Swap", justify="right")
+    tabla.add_column("minFlt", justify="right")
+    tabla.add_column("majFlt", justify="right", style="red")
+
+    for pid in sorted(procesos.keys())[:MAX_FILAS]:
+        m = procesos[pid]
+        tabla.add_row(
+            str(pid),
+            _mb(m.vm_size), _mb(m.vm_rss), _mb(m.vm_hwm),
+            _mb(m.vm_data), _mb(m.vm_stk), _mb(m.vm_lib), _mb(m.vm_swap),
+            str(m.minor_faults), str(m.major_faults),
+        )
+    return tabla
 
 def _tabla_generica(procesos: dict, titulo: str) -> Table:
     tabla = Table(title=titulo, expand=True)
@@ -398,6 +426,8 @@ def _render(snapshot: dict, estado: EstadoDisplay) -> Layout:
         layout["body"].update(_panel_ayuda())
     elif vista == "resumen":
         layout["body"].update(_tabla_resumen(procesos, estado))
+    elif vista == "memoria":
+        layout["body"].update(_tabla_memoria(procesos))
     elif vista == "sistema":
         layout["body"].update(Panel(str(sistema), title="Sistema (detalle)"))
     elif vista == "senales":

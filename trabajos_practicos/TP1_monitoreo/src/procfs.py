@@ -387,6 +387,24 @@ def listar_fds(pid: int) -> list[int] | None:
     return [int(fd) for fd in entries if fd.isdigit()]
 
 @dataclass
+class ProcessMemoria:
+    """
+    Datos de memoria de un proceso, de /proc/<pid>/status y /stat.
+    Los valores Vm* están en kB y son None en procesos kernel
+    (no tienen memoria de usuario). Los page faults son contadores acumulados.
+    """
+    vm_size: int | None      # memoria virtual total
+    vm_rss: int | None       # memoria física residente (RAM real)
+    vm_data: int | None      # segmento de datos
+    vm_stk: int | None       # stack
+    vm_exe: int | None       # código ejecutable (text)
+    vm_lib: int | None       # librerías compartidas
+    vm_hwm: int | None       # high water mark de RSS (pico histórico)
+    vm_swap: int | None      # memoria en swap
+    minor_faults: int        # page faults menores (sin acceso a disco)
+    major_faults: int        # page faults mayores (con acceso a disco)
+
+@dataclass
 class MemoryRegion:
     """
     Una región de memoria virtual del proceso.
@@ -479,6 +497,56 @@ def leer_maps(pid: int) -> list[MemoryRegion] | None:
         ))
 
     return regiones
+
+def leer_memoria(pid: int) -> ProcessMemoria | None:
+    """
+    Lee los campos Vm* de /proc/<pid>/status y los page faults de
+    /proc/<pid>/stat.
+
+    Los Vm* pueden ser None en procesos kernel (no tienen memoria de usuario).
+    """
+    ruta_status = PROC / str(pid) / "status"
+    try:
+        with open(ruta_status) as f:
+            contenido = f.read()
+    except (FileNotFoundError, PermissionError):
+        return None
+
+    # Campos Vm* del status. None por default: si un proceso kernel no los
+    # tiene, quedan en None en vez de 0 (más honesto).
+    vm = {
+        "VmSize": None, "VmRSS": None, "VmData": None, "VmStk": None,
+        "VmExe": None, "VmLib": None, "VmHWM": None, "VmSwap": None,
+    }
+    for line in contenido.splitlines():
+        partes = line.split(":", 1)
+        if len(partes) != 2:
+            continue
+        clave = partes[0]
+        if clave in vm:
+            vm[clave] = int(partes[1].split()[0])   # "12345 kB" -> 12345
+
+    # Los page faults salen de /proc/<pid>/stat (campos 10 y 12).
+    minor_faults = 0
+    major_faults = 0
+    try:
+        with open(PROC / str(pid) / "stat") as f:
+            contenido_stat = f.read()
+        fin = contenido_stat.rindex(")")
+        resto = contenido_stat[fin + 1:].split()
+        # resto[0] = campo 3 (state). minflt = campo 10 -> resto[7],
+        # majflt = campo 12 -> resto[9].
+        minor_faults = int(resto[7])
+        major_faults = int(resto[9])
+    except (FileNotFoundError, PermissionError, ValueError, IndexError):
+        pass
+
+    return ProcessMemoria(
+        vm_size=vm["VmSize"], vm_rss=vm["VmRSS"], vm_data=vm["VmData"],
+        vm_stk=vm["VmStk"], vm_exe=vm["VmExe"], vm_lib=vm["VmLib"],
+        vm_hwm=vm["VmHWM"], vm_swap=vm["VmSwap"],
+        minor_faults=minor_faults, major_faults=major_faults,
+    )
 
 
 def leer_signals(pid: int) -> ProcessSignals | None:
