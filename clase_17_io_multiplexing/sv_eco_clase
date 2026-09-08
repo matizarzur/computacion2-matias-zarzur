@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Servidor eco con epoll: un hilo, muchos clientes."""
+import select
+import socket
+
+servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+servidor.bind(('0.0.0.0', 8080))
+servidor.listen(128)
+servidor.setblocking(False)
+
+epoll = select.epoll()
+epoll.register(servidor.fileno(), select.EPOLLIN)
+
+conexiones = {servidor.fileno(): servidor}   # fd -> socket
+
+while True:
+    eventos = epoll.poll()                   # sin timeout: espera indefinidamente
+
+    for fd, mascara in eventos:
+        sock = conexiones[fd]
+
+        if sock is servidor:
+            conn, direccion = servidor.accept()
+            conn.setblocking(False)
+            epoll.register(conn.fileno(), select.EPOLLIN)
+            conexiones[conn.fileno()] = conn
+            print(f'Nuevo cliente: {direccion}')
+
+        elif mascara & select.EPOLLHUP:
+            epoll.unregister(fd)
+            sock.close()
+            del conexiones[fd]
+
+        else:
+            datos = sock.recv(4096)
+            if datos:
+                sock.sendall(datos)
+            else:
+                epoll.unregister(fd)          # antes de close(), siempre
+                sock.close()
+                del conexiones[fd]
+
+epoll.close()
