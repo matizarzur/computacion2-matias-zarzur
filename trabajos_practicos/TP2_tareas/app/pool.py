@@ -9,14 +9,16 @@ import logging
 
 from .almacen import Almacen
 from .modelos import Estado, Tarea
-from .tareas import EJECUTORES
+from .tareas import EJECUTORES, Recursos
 
 log = logging.getLogger('tareas.pool')
 
 
 class Pool:
-    def __init__(self, almacen: Almacen, n_workers: int, cola_max: int):
+    def __init__(self, almacen: Almacen, recursos: Recursos,
+                 n_workers: int, cola_max: int):
         self._almacen = almacen
+        self._recursos = recursos
         self._n_workers = n_workers
         self.cola: asyncio.Queue[str] = asyncio.Queue(maxsize=cola_max)
         self._workers: list[asyncio.Task] = []
@@ -109,7 +111,8 @@ class Pool:
         limite = asyncio.timeout(tarea.timeout)
         try:
             async with limite:
-                resultado = await EJECUTORES[tarea.tipo](tarea.parametros)
+                resultado = await EJECUTORES[tarea.tipo](tarea.parametros,
+                                                         self._recursos)
         except asyncio.CancelledError:
             tarea.cancelar()
             log.info('%s cancelada', tarea.id)

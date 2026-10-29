@@ -1,8 +1,10 @@
 """API HTTP de la plataforma de tareas distribuidas."""
 import asyncio
 import logging
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import asynccontextmanager
 
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 
@@ -10,6 +12,7 @@ from . import config
 from .almacen import Almacen
 from .modelos import Estado, Pedido, Tarea, TareaCreada
 from .pool import Pool
+from .tareas import Recursos
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
@@ -20,12 +23,25 @@ log = logging.getLogger('tareas')
 async def ciclo(app: FastAPI):
     """Arranque y apagado: los workers viven mientras viva la aplicación."""
     almacen = Almacen()
-    pool = Pool(almacen, config.WORKERS, config.COLA_MAX)
-    app.state.almacen = almacen
-    app.state.pool = pool
-    pool.iniciar()
-    yield
-    await pool.detener()
+    # Un solo cliente HTTP y un solo pool de procesos para toda la vida del
+    # servicio: crearlos por tarea sería caro (conexiones, procesos).
+    async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT) as http:
+        executor = ProcessPoolExecutor(max_workers=config.EXECUTOR_WORKERS)
+        recursos = Recursos(http, executor, config.MODO_CPU)
+        pool = Pool(almacen, recursos, config.WORKERS, config.COLA_MAX)
+        app.state.almacen = almacen
+        app.state.pool = pool
+        log.info('hashear corre en: %s (%d procesos)',
+                 config.MODO_CPU, config.EXECUTOR_WORKERS)
+        pool.iniciar()
+        try:
+            yield
+        finally:
+            await pool.detener()
+            # shutdown(wait=True) bloquea: se hace en un thread para no
+            # congelar el loop mientras termina el bloque en curso.
+            await asyncio.to_thread(executor.shutdown, wait=True,
+                                    cancel_futures=True)
 
 
 app = FastAPI(title='Plataforma de tareas distribuidas', lifespan=ciclo)
