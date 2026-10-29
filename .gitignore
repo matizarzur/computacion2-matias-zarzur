@@ -13,3 +13,6 @@ __pycache__/
 
 # Dumps del monitor (SIGUSR1 los genera en runtime)
 dump_*.json
+
+# Volcados del TP2 (se generan al apagar el servicio)
+estado_*.json
