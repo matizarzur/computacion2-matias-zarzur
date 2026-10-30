@@ -95,8 +95,9 @@ class Tarea(BaseModel):
         self.error = motivo
         self.terminada = ahora()
 
-    def cancelar(self) -> None:
+    def cancelar(self, motivo: str | None = None) -> None:
         self.estado = Estado.CANCELADA
+        self.error = motivo
         self.terminada = ahora()
 
 

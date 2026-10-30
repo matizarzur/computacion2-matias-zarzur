@@ -8,7 +8,7 @@ programa.
 import uuid
 from collections import defaultdict
 
-from .modelos import Estado, Pedido, Tarea
+from .modelos import Estado, Pedido, Tarea, ahora
 
 
 class Almacen:
@@ -17,7 +17,7 @@ class Almacen:
 
     def crear(self, pedido: Pedido, timeout_defecto: float) -> Tarea:
         id_ = uuid.uuid4().hex[:8]
-        while id_ in self._tareas:          # 8 hex: improbable, pero se chequea
+        while id_ in self._tareas:      # 8 hex: improbable, pero se chequea
             id_ = uuid.uuid4().hex[:8]
         tarea = Tarea(
             id=id_,
@@ -39,6 +39,15 @@ class Almacen:
     def listar(self, estado: Estado | None = None) -> list[Tarea]:
         return [t for t in self._tareas.values()
                 if estado is None or t.estado == estado]
+
+    def instantanea(self) -> dict:
+        """Todo el estado, listo para json.dumps (ver persistencia.volcar)."""
+        return {
+            'volcado': ahora().isoformat(),
+            'resumen': self.resumen(),
+            'tareas': [t.model_dump(mode='json')
+                       for t in self._tareas.values()],
+        }
 
     def resumen(self) -> dict:
         """Totales por estado y tiempos promedio de las tareas completadas."""

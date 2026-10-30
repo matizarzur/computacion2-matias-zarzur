@@ -23,6 +23,7 @@ class Pool:
         self.cola: asyncio.Queue[str] = asyncio.Queue(maxsize=cola_max)
         self._workers: list[asyncio.Task] = []
         self._en_curso: dict[str, asyncio.Task] = {}   # id -> tarea interna
+        self._cerrando = False
 
     @property
     def ocupados(self) -> int:
@@ -64,11 +65,33 @@ class Pool:
 
         return False
 
-    async def detener(self) -> None:
+    async def detener(self, espera: float) -> None:
+        """Apagado ordenado: no arrancar nada nuevo, esperar hasta `espera`
+        segundos a lo que ya está corriendo, cancelar lo que siga y parar.
+
+        Las tareas nuevas ya no llegan: uvicorn cierra el socket antes de
+        ejecutar el cierre del lifespan, que es quien llama a esto.
+        """
+        self._cerrando = True           # los workers dejan de tomar de la cola
+
+        en_curso = set(self._en_curso.values())
+        if en_curso:
+            log.info('apagando: espero hasta %.1f s a %d tareas en curso',
+                     espera, len(en_curso))
+            _, siguen = await asyncio.wait(en_curso, timeout=espera)
+            if siguen:
+                log.info('apagando: cancelo %d tareas que no terminaron '
+                         'a tiempo', len(siguen))
+                for interna in siguen:
+                    interna.cancel()
+                await asyncio.wait(siguen)   # que terminen de verdad
+
         for w in self._workers:
             w.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
-        log.info('workers detenidos')
+        sin_ejecutar = len(self._almacen.listar(Estado.PENDIENTE))
+        log.info('workers detenidos; %d tareas quedan pendientes sin ejecutar',
+                 sin_ejecutar)
 
     # --- internos ---------------------------------------------------------
 
@@ -87,6 +110,8 @@ class Pool:
         tarea = self._almacen.obtener(id_)
         if tarea is None or tarea.estado != Estado.PENDIENTE:
             return                      # la cancelaron mientras esperaba
+        if self._cerrando:
+            return                      # apagando: queda pendiente al volcar
 
         tarea.iniciar()
         # Entre iniciar() y registrar la tarea interna no hay ningún await:
@@ -107,20 +132,21 @@ class Pool:
             del self._en_curso[tarea.id]
 
     async def _correr(self, tarea: Tarea) -> None:
-        """El trabajo en sí, con su timeout. Deja la tarea en un estado final."""
+        """El trabajo en sí, con su timeout. Deja la tarea en estado final."""
         limite = asyncio.timeout(tarea.timeout)
         try:
             async with limite:
                 resultado = await EJECUTORES[tarea.tipo](tarea.parametros,
                                                          self._recursos)
         except asyncio.CancelledError:
-            tarea.cancelar()
+            tarea.cancelar('apagado del servicio' if self._cerrando else None)
             log.info('%s cancelada', tarea.id)
             raise
         except TimeoutError as exc:
             # Puede ser nuestro límite o un TimeoutError que viene de adentro.
             if limite.expired():
-                tarea.fallar(f'timeout: superó el límite de {tarea.timeout} s')
+                tarea.fallar(
+                    f'timeout: superó el límite de {tarea.timeout} s')
             else:
                 tarea.fallar(f'TimeoutError: {exc}')
             log.info('%s fallida: %s', tarea.id, tarea.error)

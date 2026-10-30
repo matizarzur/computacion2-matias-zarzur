@@ -4,6 +4,7 @@ Los valores por defecto sirven para desarrollar; docker-compose.yml puede
 pisarlos sin tocar el código.
 """
 import os
+from pathlib import Path
 
 HOST = os.getenv('HOST', '127.0.0.1')
 PORT = int(os.getenv('PORT', '8000'))
@@ -37,3 +38,12 @@ EXECUTOR_WORKERS = int(os.getenv('EXECUTOR_WORKERS', os.cpu_count() or 1))
 # que un proceso sigue ocupado después de cancelar (~0.1 s con el valor por
 # defecto en la máquina de desarrollo).
 BLOQUE_HASH = int(os.getenv('BLOQUE_HASH', '100000'))
+
+# Apagado ordenado: cuántos segundos se espera a las tareas en curso antes de
+# cancelarlas. Tiene que ser menor que el tiempo que Docker espera antes de
+# mandar SIGKILL (ver docker-compose.yml).
+APAGADO_ESPERA = float(os.getenv('APAGADO_ESPERA', '5'))
+
+# Dónde se escriben los volcados estado_<timestamp>.json.
+DIR_ESTADO = Path(os.getenv('DIR_ESTADO',
+                            Path(__file__).resolve().parent.parent / 'datos'))

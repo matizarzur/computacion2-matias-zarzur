@@ -8,7 +8,7 @@ import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 
-from . import config
+from . import config, persistencia
 from .almacen import Almacen
 from .modelos import Estado, Pedido, Tarea, TareaCreada
 from .pool import Pool
@@ -21,7 +21,12 @@ log = logging.getLogger('tareas')
 
 @asynccontextmanager
 async def ciclo(app: FastAPI):
-    """Arranque y apagado: los workers viven mientras viva la aplicación."""
+    """Arranque y apagado: los workers viven mientras viva la aplicación.
+
+    uvicorn ejecuta el bloque posterior al `yield` cuando recibe SIGTERM o
+    SIGINT, después de cerrar el socket: es el lugar del apagado ordenado.
+    """
+    await persistencia.reportar_previo(config.DIR_ESTADO)
     almacen = Almacen()
     # Un solo cliente HTTP y un solo pool de procesos para toda la vida del
     # servicio: crearlos por tarea sería caro (conexiones, procesos).
@@ -37,11 +42,15 @@ async def ciclo(app: FastAPI):
         try:
             yield
         finally:
-            await pool.detener()
+            await pool.detener(config.APAGADO_ESPERA)
             # shutdown(wait=True) bloquea: se hace en un thread para no
             # congelar el loop mientras termina el bloque en curso.
             await asyncio.to_thread(executor.shutdown, wait=True,
                                     cancel_futures=True)
+            # Último paso: todas las tareas ya están en su estado final.
+            ruta = await persistencia.volcar(almacen.instantanea(),
+                                             config.DIR_ESTADO)
+            log.info('estado volcado en %s', ruta)
 
 
 app = FastAPI(title='Plataforma de tareas distribuidas', lifespan=ciclo)
