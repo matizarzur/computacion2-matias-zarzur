@@ -1,6 +1,7 @@
 """Volcado del estado al apagar y aviso al arrancar."""
 import json
 import logging
+import os
 
 from app import persistencia
 from app.almacen import Almacen
@@ -48,6 +49,24 @@ async def test_arranque_reporta_el_ultimo_volcado(tmp_path, caplog):
     assert 'estado_20260101' not in caplog.text      # eligió el más nuevo
     assert "con 1 tareas {'pendiente': 1}" in caplog.text
     assert '1 tareas quedaron pendientes sin ejecutarse' in caplog.text
+
+
+async def test_el_ultimo_es_el_mas_reciente_aunque_su_nombre_ordene_antes(
+        tmp_path, caplog):
+    # Pasa si cambia la zona horaria (TZ) entre dos volcados: el nuevo,
+    # en hora local, tiene un nombre "menor" que el viejo, en UTC.
+    viejo = tmp_path / 'estado_20261030_180000.json'
+    nuevo = tmp_path / 'estado_20261030_150000.json'
+    viejo.write_text(json.dumps({'resumen': {'total': 1}}))
+    nuevo.write_text(json.dumps({'resumen': {'total': 2}}))
+    os.utime(viejo, (1_000, 1_000))         # escrito antes
+    os.utime(nuevo, (2_000, 2_000))         # escrito después
+
+    with caplog.at_level(logging.INFO, logger='tareas.persistencia'):
+        await persistencia.reportar_previo(tmp_path)
+
+    assert nuevo.name in caplog.text
+    assert viejo.name not in caplog.text
 
 
 async def test_arranque_con_volcado_corrupto_no_se_cae(tmp_path, caplog):

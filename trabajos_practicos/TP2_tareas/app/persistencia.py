@@ -35,11 +35,12 @@ async def volcar(instantanea: dict, directorio: Path) -> Path:
 
 
 def _leer_ultimo(directorio: Path) -> tuple[Path, dict] | None:
-    # El timestamp del nombre ordena alfabéticamente igual que en el tiempo.
-    volcados = sorted(directorio.glob(PATRON))
+    volcados = list(directorio.glob(PATRON))
     if not volcados:
         return None
-    ultimo = volcados[-1]
+    # Por fecha de modificación y no por nombre: el nombre lleva la hora
+    # local, y si cambia la zona horaria (TZ) deja de ordenar en el tiempo.
+    ultimo = max(volcados, key=lambda ruta: ruta.stat().st_mtime)
     return ultimo, json.loads(ultimo.read_text(encoding='utf-8'))
 
 

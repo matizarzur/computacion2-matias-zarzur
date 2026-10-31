@@ -5,6 +5,7 @@ el mismo FastAPI, el mismo lifespan y los mismos workers que en producción.
 """
 import asyncio
 import json
+import logging
 import time
 
 import httpx
@@ -150,3 +151,18 @@ async def test_apagar_la_aplicacion_vuelca_el_estado(tmp_path, monkeypatch):
     assert tareas[0]['id'] == id_
     assert tareas[0]['estado'] == 'cancelada'
     assert tareas[0]['error'] == 'apagado del servicio'
+
+
+async def test_si_el_volcado_falla_el_apagado_termina_igual(
+        tmp_path, monkeypatch, caplog):
+    # DIR_ESTADO apunta a un archivo: crear el directorio va a fallar,
+    # como pasaría sin permisos de escritura o con el disco lleno.
+    no_es_directorio = tmp_path / 'archivo'
+    no_es_directorio.write_text('x')
+    monkeypatch.setattr(config, 'DIR_ESTADO', no_es_directorio)
+
+    with caplog.at_level(logging.ERROR, logger='tareas'):
+        async with ciclo(app):
+            pass                    # el apagado no debe lanzar excepción
+
+    assert 'no se pudo volcar el estado' in caplog.text

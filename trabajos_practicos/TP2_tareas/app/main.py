@@ -48,9 +48,16 @@ async def ciclo(app: FastAPI):
             await asyncio.to_thread(executor.shutdown, wait=True,
                                     cancel_futures=True)
             # Último paso: todas las tareas ya están en su estado final.
-            ruta = await persistencia.volcar(almacen.instantanea(),
-                                             config.DIR_ESTADO)
-            log.info('estado volcado en %s', ruta)
+            # Si el disco falla, se avisa y el apagado termina igual: los
+            # recursos ya se liberaron y no hay nada más que hacer.
+            try:
+                ruta = await persistencia.volcar(almacen.instantanea(),
+                                                 config.DIR_ESTADO)
+            except OSError:
+                log.exception('no se pudo volcar el estado en %s',
+                              config.DIR_ESTADO)
+            else:
+                log.info('estado volcado en %s', ruta)
 
 
 app = FastAPI(title='Plataforma de tareas distribuidas', lifespan=ciclo)
