@@ -1,0 +1,37 @@
+services:
+  # La plataforma de tareas.
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    # Los valores se pueden cambiar al levantar, sin tocar el código. Por
+    # ejemplo, para la medición 2:  MODO_CPU=loop docker compose up --build
+    # (los valores por defecto son los mismos que en app/config.py).
+    environment:
+      WORKERS: ${WORKERS:-4}
+      COLA_MAX: ${COLA_MAX:-100}
+      TIMEOUT_DEFECTO: ${TIMEOUT_DEFECTO:-30}
+      MODO_CPU: ${MODO_CPU:-executor}
+      APAGADO_ESPERA: ${APAGADO_ESPERA:-5}
+      # Sin esto el contenedor usa UTC: logs y nombres de los volcados
+      # quedarían corridos 3 horas respecto de la hora local.
+      TZ: ${TZ:-America/Argentina/Mendoza}
+    volumes:
+      # Volumen con nombre (no una carpeta del host): los volcados
+      # sobreviven a `docker compose down` y no dependen de los permisos
+      # del usuario que clonó el repo.
+      - datos:/app/datos
+    # Cuánto espera Docker entre el SIGTERM y el SIGKILL. Por defecto son
+    # 10 s (medido); se deja explícito y mayor que APAGADO_ESPERA para que
+    # el apagado ordenado siempre llegue a volcar el estado.
+    stop_grace_period: 15s
+
+  # Destino de prueba para la tarea "descargar" (ver medicion/).
+  # Desde la API se lo llama por su nombre de servicio:
+  #   http://lento:8001/demora/1
+  lento:
+    build: .
+    command: ["python", "medicion/servidor_lento.py"]
+
+volumes:
+  datos:

@@ -1,0 +1,21 @@
+# Entorno local: la imagen instala sus propias dependencias.
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Tests y su configuración: corren en desarrollo, no en la imagen.
+tests/
+pytest.ini
+requirements-dev.txt
+
+# Volcados generados en desarrollo: no deben viajar dentro de la imagen.
+datos/
+estado_*.json
+
+# Documentación y configuración de Docker.
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore
