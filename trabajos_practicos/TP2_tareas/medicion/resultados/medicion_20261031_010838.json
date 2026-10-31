@@ -1,0 +1,1365 @@
+{
+  "entorno": {
+    "fecha": "2026-10-31T01:08:38-03:00",
+    "cpu": "Intel(R) Core(TM) i5-6200U CPU @ 2.30GHz",
+    "cpus_logicas": 4,
+    "ram": "7983772 kB",
+    "so": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "docker": "Docker version 29.9.1, build dfc520d",
+    "python_contenedor": "Python 3.12.16"
+  },
+  "reps": 3,
+  "en_vuelo": 50,
+  "medicion_1": {
+    "filas": [
+      {
+        "escenario": "secuencial: 20 tareas, 1 worker",
+        "config": {
+          "WORKERS": 1
+        },
+        "mediana_total_s": 20.428262,
+        "corridas": [
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 20.406229,
+            "alta_s": 0.014871,
+            "espera_media_s": 9.70401825,
+            "espera_max_s": 19.370028,
+            "duracion_media_s": 1.0193740500000001,
+            "duracion_max_s": 1.041152,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 20.436431,
+            "alta_s": 0.015834,
+            "espera_media_s": 9.7162226,
+            "espera_max_s": 19.399196,
+            "duracion_media_s": 1.0208206,
+            "duracion_max_s": 1.040055,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 20.428262,
+            "alta_s": 0.018477,
+            "espera_media_s": 9.71746465,
+            "espera_max_s": 19.390621,
+            "duracion_media_s": 1.0202674,
+            "duracion_max_s": 1.042273,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          }
+        ],
+        "speedup": 1.0
+      },
+      {
+        "escenario": "20 tareas, 4 workers (por defecto)",
+        "config": {
+          "WORKERS": 4
+        },
+        "mediana_total_s": 5.146752,
+        "corridas": [
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 5.168413,
+            "alta_s": 0.021573,
+            "espera_media_s": 2.0970359,
+            "espera_max_s": 4.142872,
+            "duracion_media_s": 1.02677945,
+            "duracion_max_s": 1.082378,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 5.146752,
+            "alta_s": 0.018079,
+            "espera_media_s": 2.0762922,
+            "espera_max_s": 4.113923,
+            "duracion_media_s": 1.0240133500000002,
+            "duracion_max_s": 1.059396,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 5.112228,
+            "alta_s": 0.014722,
+            "espera_media_s": 2.05750305,
+            "espera_max_s": 4.088863,
+            "duracion_media_s": 1.018192,
+            "duracion_max_s": 1.036788,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          }
+        ],
+        "speedup": 3.9691560813499462
+      },
+      {
+        "escenario": "20 tareas, 20 workers",
+        "config": {
+          "WORKERS": 20
+        },
+        "mediana_total_s": 1.10095,
+        "corridas": [
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 1.098474,
+            "alta_s": 0.015626,
+            "espera_media_s": 0.0086836,
+            "espera_max_s": 0.016178,
+            "duracion_media_s": 1.07633805,
+            "duracion_max_s": 1.081808,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 1.10095,
+            "alta_s": 0.014182,
+            "espera_media_s": 0.007739,
+            "espera_max_s": 0.014636,
+            "duracion_media_s": 1.0800708499999998,
+            "duracion_max_s": 1.085812,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 20,
+            "por_estado": {
+              "completada": 20
+            },
+            "total_s": 1.104752,
+            "alta_s": 0.017698,
+            "espera_media_s": 0.010109,
+            "espera_max_s": 0.018387,
+            "duracion_media_s": 1.07746575,
+            "duracion_max_s": 1.085362,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          }
+        ],
+        "speedup": 18.555122394295832
+      },
+      {
+        "escenario": "1 tarea con 20 URLs, 1 worker",
+        "config": {
+          "WORKERS": 1
+        },
+        "mediana_total_s": 1.093455,
+        "corridas": [
+          {
+            "n": 1,
+            "por_estado": {
+              "completada": 1
+            },
+            "total_s": 1.11282,
+            "alta_s": 0.0,
+            "espera_media_s": 0.000756,
+            "espera_max_s": 0.000756,
+            "duracion_media_s": 1.112064,
+            "duracion_max_s": 1.112064,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 1,
+            "por_estado": {
+              "completada": 1
+            },
+            "total_s": 1.092787,
+            "alta_s": 0.0,
+            "espera_media_s": 0.000633,
+            "espera_max_s": 0.000633,
+            "duracion_media_s": 1.092154,
+            "duracion_max_s": 1.092154,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          },
+          {
+            "n": 1,
+            "por_estado": {
+              "completada": 1
+            },
+            "total_s": 1.093455,
+            "alta_s": 0.0,
+            "espera_media_s": 0.000521,
+            "espera_max_s": 0.000521,
+            "duracion_media_s": 1.092934,
+            "duracion_max_s": 1.092934,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "descargas_con_error": 0
+          }
+        ],
+        "speedup": 18.682306999373544
+      }
+    ]
+  },
+  "medicion_2": {
+    "iteraciones": 4000000,
+    "filas": [
+      {
+        "modo": "loop",
+        "mediana_get_max_ms": 3702.6270489986928,
+        "mediana_get_mediana_ms": 3702.6270489986928,
+        "mediana_reposo_ms": 2.76783299887029,
+        "mediana_hash_s": 3.703502,
+        "corridas": [
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.879746501093905,
+              "max_ms": 7.035827000436257,
+              "p95_ms": 5.156165549669822
+            },
+            "durante": {
+              "n": 1,
+              "mediana_ms": 3698.545314000512,
+              "max_ms": 3698.545314000512,
+              "p95_ms": 3698.545314000512
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.698663
+          },
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.7428390003478853,
+              "max_ms": 8.738794000237249,
+              "p95_ms": 4.5075985000949
+            },
+            "durante": {
+              "n": 1,
+              "mediana_ms": 3815.502968000146,
+              "max_ms": 3815.502968000146,
+              "p95_ms": 3815.502968000146
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.814085
+          },
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.76783299887029,
+              "max_ms": 13.322590999450767,
+              "p95_ms": 4.655979450126324
+            },
+            "durante": {
+              "n": 1,
+              "mediana_ms": 3702.6270489986928,
+              "max_ms": 3702.6270489986928,
+              "p95_ms": 3702.6270489986928
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.703502
+          }
+        ]
+      },
+      {
+        "modo": "executor",
+        "mediana_get_max_ms": 17.734654000378214,
+        "mediana_get_mediana_ms": 2.966078998724697,
+        "mediana_reposo_ms": 2.7630680006041075,
+        "mediana_hash_s": 3.894452,
+        "corridas": [
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.8811815009248676,
+              "max_ms": 5.600346999926842,
+              "p95_ms": 4.866401700201095
+            },
+            "durante": {
+              "n": 39,
+              "mediana_ms": 2.966078998724697,
+              "max_ms": 19.319339000503533,
+              "p95_ms": 3.7423973002660205
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.896459
+          },
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.7630680006041075,
+              "max_ms": 6.36995099921478,
+              "p95_ms": 5.476955749691115
+            },
+            "durante": {
+              "n": 39,
+              "mediana_ms": 2.9955250010971213,
+              "max_ms": 17.159967001134646,
+              "p95_ms": 3.855863898570533
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.894452
+          },
+          {
+            "reposo": {
+              "n": 20,
+              "mediana_ms": 2.704196499507816,
+              "max_ms": 5.455513000924839,
+              "p95_ms": 4.004320549847762
+            },
+            "durante": {
+              "n": 39,
+              "mediana_ms": 2.839927999957581,
+              "max_ms": 17.734654000378214,
+              "p95_ms": 3.840827100793831
+            },
+            "hashear_estado": "completada",
+            "hashear_duracion_s": 3.866803
+          }
+        ]
+      }
+    ]
+  },
+  "medicion_3": {
+    "config": {
+      "WORKERS": 5000,
+      "COLA_MAX": 10000
+    },
+    "series": [
+      {
+        "serie": "hashear (CPU)",
+        "puntos": [
+          {
+            "n": 1,
+            "total_s": 0.496832,
+            "alta_s": 0.0,
+            "espera_media_s": 0.000512,
+            "duracion_media_s": 0.49633,
+            "duracion_max_s": 0.49633,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 1,
+                "por_estado": {
+                  "completada": 1
+                },
+                "total_s": 0.496832,
+                "alta_s": 0.0,
+                "espera_media_s": 0.000502,
+                "espera_max_s": 0.000502,
+                "duracion_media_s": 0.49633,
+                "duracion_max_s": 0.49633,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1,
+                "por_estado": {
+                  "completada": 1
+                },
+                "total_s": 0.490922,
+                "alta_s": 0.0,
+                "espera_media_s": 0.000525,
+                "espera_max_s": 0.000525,
+                "duracion_media_s": 0.490397,
+                "duracion_max_s": 0.490397,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1,
+                "por_estado": {
+                  "completada": 1
+                },
+                "total_s": 0.510963,
+                "alta_s": 0.0,
+                "espera_media_s": 0.000512,
+                "espera_max_s": 0.000512,
+                "duracion_media_s": 0.510451,
+                "duracion_max_s": 0.510451,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 2,
+            "total_s": 0.602368,
+            "alta_s": 0.000815,
+            "espera_media_s": 0.000907,
+            "duracion_media_s": 0.5975555,
+            "duracion_max_s": 0.601058,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 2,
+                "por_estado": {
+                  "completada": 2
+                },
+                "total_s": 0.572203,
+                "alta_s": 0.000815,
+                "espera_media_s": 0.000907,
+                "espera_max_s": 0.001266,
+                "duracion_media_s": 0.562399,
+                "duracion_max_s": 0.57084,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 2,
+                "por_estado": {
+                  "completada": 2
+                },
+                "total_s": 0.602368,
+                "alta_s": 0.000735,
+                "espera_media_s": 0.000879,
+                "espera_max_s": 0.001183,
+                "duracion_media_s": 0.5975555,
+                "duracion_max_s": 0.601058,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 2,
+                "por_estado": {
+                  "completada": 2
+                },
+                "total_s": 0.625292,
+                "alta_s": 0.000862,
+                "espera_media_s": 0.001065,
+                "espera_max_s": 0.00141,
+                "duracion_media_s": 0.6183765,
+                "duracion_max_s": 0.62371,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 3,
+            "total_s": 0.773338,
+            "alta_s": 0.001965,
+            "espera_media_s": 0.0017586666666666668,
+            "duracion_media_s": 0.7168316666666666,
+            "duracion_max_s": 0.770975,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 3,
+                "por_estado": {
+                  "completada": 3
+                },
+                "total_s": 0.793716,
+                "alta_s": 0.002059,
+                "espera_media_s": 0.0019436666666666667,
+                "espera_max_s": 0.002765,
+                "duracion_media_s": 0.7456643333333334,
+                "duracion_max_s": 0.790779,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 3,
+                "por_estado": {
+                  "completada": 3
+                },
+                "total_s": 0.773338,
+                "alta_s": 0.001505,
+                "espera_media_s": 0.0014876666666666667,
+                "espera_max_s": 0.002142,
+                "duracion_media_s": 0.7168316666666666,
+                "duracion_max_s": 0.770975,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 3,
+                "por_estado": {
+                  "completada": 3
+                },
+                "total_s": 0.745465,
+                "alta_s": 0.001965,
+                "espera_media_s": 0.0017586666666666668,
+                "espera_max_s": 0.002625,
+                "duracion_media_s": 0.7134176666666666,
+                "duracion_max_s": 0.742705,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 4,
+            "total_s": 0.991798,
+            "alta_s": 0.00258,
+            "espera_media_s": 0.0020595,
+            "duracion_media_s": 0.9566495,
+            "duracion_max_s": 0.988403,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 4,
+                "por_estado": {
+                  "completada": 4
+                },
+                "total_s": 1.018891,
+                "alta_s": 0.00258,
+                "espera_media_s": 0.00204425,
+                "espera_max_s": 0.003171,
+                "duracion_media_s": 0.9566495,
+                "duracion_max_s": 1.01556,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 4,
+                "por_estado": {
+                  "completada": 4
+                },
+                "total_s": 0.991798,
+                "alta_s": 0.002512,
+                "espera_media_s": 0.0020595,
+                "espera_max_s": 0.003174,
+                "duracion_media_s": 0.9655165,
+                "duracion_max_s": 0.988403,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 4,
+                "por_estado": {
+                  "completada": 4
+                },
+                "total_s": 0.960188,
+                "alta_s": 0.003552,
+                "espera_media_s": 0.002658,
+                "espera_max_s": 0.004283,
+                "duracion_media_s": 0.9278535,
+                "duracion_max_s": 0.955905,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 6,
+            "total_s": 1.473894,
+            "alta_s": 0.004915,
+            "espera_media_s": 0.009108333333333333,
+            "duracion_media_s": 1.39308,
+            "duracion_max_s": 1.465985,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 6,
+                "por_estado": {
+                  "completada": 6
+                },
+                "total_s": 1.516618,
+                "alta_s": 0.005166,
+                "espera_media_s": 0.0140275,
+                "espera_max_s": 0.021285,
+                "duracion_media_s": 1.4021891666666668,
+                "duracion_max_s": 1.492417,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 6,
+                "por_estado": {
+                  "completada": 6
+                },
+                "total_s": 1.438053,
+                "alta_s": 0.004915,
+                "espera_media_s": 0.004996833333333333,
+                "espera_max_s": 0.015804,
+                "duracion_media_s": 1.346029,
+                "duracion_max_s": 1.417334,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 6,
+                "por_estado": {
+                  "completada": 6
+                },
+                "total_s": 1.473894,
+                "alta_s": 0.004878,
+                "espera_media_s": 0.009108333333333333,
+                "espera_max_s": 0.016894,
+                "duracion_media_s": 1.39308,
+                "duracion_max_s": 1.465985,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 8,
+            "total_s": 1.940932,
+            "alta_s": 0.005638,
+            "espera_media_s": 0.016913875000000002,
+            "duracion_media_s": 1.8055055,
+            "duracion_max_s": 1.917923,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 8,
+                "por_estado": {
+                  "completada": 8
+                },
+                "total_s": 1.934374,
+                "alta_s": 0.006439,
+                "espera_media_s": 0.016913875000000002,
+                "espera_max_s": 0.020972,
+                "duracion_media_s": 1.796155125,
+                "duracion_max_s": 1.910963,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 8,
+                "por_estado": {
+                  "completada": 8
+                },
+                "total_s": 1.940932,
+                "alta_s": 0.005638,
+                "espera_media_s": 0.016918,
+                "espera_max_s": 0.020507,
+                "duracion_media_s": 1.8055055,
+                "duracion_max_s": 1.917923,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 8,
+                "por_estado": {
+                  "completada": 8
+                },
+                "total_s": 1.944839,
+                "alta_s": 0.005606,
+                "espera_media_s": 0.01080425,
+                "espera_max_s": 0.017355,
+                "duracion_media_s": 1.807987375,
+                "duracion_max_s": 1.924311,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 12,
+            "total_s": 2.903309,
+            "alta_s": 0.009022,
+            "espera_media_s": 0.010722583333333334,
+            "duracion_media_s": 2.6623690833333336,
+            "duracion_max_s": 2.894514,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 12,
+                "por_estado": {
+                  "completada": 12
+                },
+                "total_s": 2.903309,
+                "alta_s": 0.008031,
+                "espera_media_s": 0.004785333333333333,
+                "espera_max_s": 0.008459,
+                "duracion_media_s": 2.6623690833333336,
+                "duracion_max_s": 2.894514,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 12,
+                "por_estado": {
+                  "completada": 12
+                },
+                "total_s": 2.936515,
+                "alta_s": 0.009022,
+                "espera_media_s": 0.011729333333333333,
+                "espera_max_s": 0.022356,
+                "duracion_media_s": 2.6936848333333336,
+                "duracion_max_s": 2.908885,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 12,
+                "por_estado": {
+                  "completada": 12
+                },
+                "total_s": 2.900962,
+                "alta_s": 0.011655,
+                "espera_media_s": 0.010722583333333334,
+                "espera_max_s": 0.021391,
+                "duracion_media_s": 2.647589583333333,
+                "duracion_max_s": 2.871465,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 16,
+            "total_s": 3.824434,
+            "alta_s": 0.011067,
+            "espera_media_s": 0.014204,
+            "duracion_media_s": 3.5044826875,
+            "duracion_max_s": 3.795397,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 16,
+                "por_estado": {
+                  "completada": 16
+                },
+                "total_s": 3.824434,
+                "alta_s": 0.011067,
+                "espera_media_s": 0.014204,
+                "espera_max_s": 0.023598,
+                "duracion_media_s": 3.5044826875,
+                "duracion_max_s": 3.795397,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 16,
+                "por_estado": {
+                  "completada": 16
+                },
+                "total_s": 3.845456,
+                "alta_s": 0.010782,
+                "espera_media_s": 0.0130924375,
+                "espera_max_s": 0.022271,
+                "duracion_media_s": 3.5194498125,
+                "duracion_max_s": 3.818224,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 16,
+                "por_estado": {
+                  "completada": 16
+                },
+                "total_s": 3.806611,
+                "alta_s": 0.013111,
+                "espera_media_s": 0.0173304375,
+                "espera_max_s": 0.026113,
+                "duracion_media_s": 3.4771901875,
+                "duracion_max_s": 3.775205,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "serie": "descargar (I/O de red)",
+        "puntos": [
+          {
+            "n": 50,
+            "total_s": 1.211969,
+            "alta_s": 0.043663,
+            "espera_media_s": 0.016433240000000002,
+            "duracion_media_s": 1.16814846,
+            "duracion_max_s": 1.180102,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 50,
+                "por_estado": {
+                  "completada": 50
+                },
+                "total_s": 1.211969,
+                "alta_s": 0.046182,
+                "espera_media_s": 0.016433240000000002,
+                "espera_max_s": 0.035128,
+                "duracion_media_s": 1.1578132600000002,
+                "duracion_max_s": 1.163855,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 50,
+                "por_estado": {
+                  "completada": 50
+                },
+                "total_s": 1.208608,
+                "alta_s": 0.041093,
+                "espera_media_s": 0.0127899,
+                "espera_max_s": 0.027899,
+                "duracion_media_s": 1.16814846,
+                "duracion_max_s": 1.180102,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 50,
+                "por_estado": {
+                  "completada": 50
+                },
+                "total_s": 1.2129,
+                "alta_s": 0.043663,
+                "espera_media_s": 0.018915360000000003,
+                "espera_max_s": 0.035209,
+                "duracion_media_s": 1.16959362,
+                "duracion_max_s": 1.210077,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 100,
+            "total_s": 1.388307,
+            "alta_s": 0.34898,
+            "espera_media_s": 0.00823551,
+            "duracion_media_s": 1.14038071,
+            "duracion_max_s": 1.228701,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.423022,
+                "alta_s": 0.378113,
+                "espera_media_s": 0.01285682,
+                "espera_max_s": 0.038128,
+                "duracion_media_s": 1.14038071,
+                "duracion_max_s": 1.228701,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.366489,
+                "alta_s": 0.326659,
+                "espera_media_s": 0.00733108,
+                "espera_max_s": 0.021463,
+                "duracion_media_s": 1.12141648,
+                "duracion_max_s": 1.185356,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.388307,
+                "alta_s": 0.34898,
+                "espera_media_s": 0.00823551,
+                "espera_max_s": 0.0224,
+                "duracion_media_s": 1.14875233,
+                "duracion_max_s": 1.237624,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 200,
+            "total_s": 2.854124,
+            "alta_s": 1.005981,
+            "espera_media_s": 0.0072258900000000004,
+            "duracion_media_s": 1.8346096399999998,
+            "duracion_max_s": 2.428541,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 200,
+                "por_estado": {
+                  "completada": 200
+                },
+                "total_s": 2.860466,
+                "alta_s": 1.005981,
+                "espera_media_s": 0.0072258900000000004,
+                "espera_max_s": 0.024865,
+                "duracion_media_s": 1.864143085,
+                "duracion_max_s": 2.450416,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 200,
+                "por_estado": {
+                  "completada": 200
+                },
+                "total_s": 2.854124,
+                "alta_s": 1.022842,
+                "espera_media_s": 0.00747754,
+                "espera_max_s": 0.02558,
+                "duracion_media_s": 1.830310165,
+                "duracion_max_s": 2.362331,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 200,
+                "por_estado": {
+                  "completada": 200
+                },
+                "total_s": 2.83309,
+                "alta_s": 0.987635,
+                "espera_media_s": 0.006689145,
+                "espera_max_s": 0.019368,
+                "duracion_media_s": 1.8346096399999998,
+                "duracion_max_s": 2.428541,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 400,
+            "total_s": 6.2651,
+            "alta_s": 4.085584,
+            "espera_media_s": 0.010521565,
+            "duracion_media_s": 2.5406985975,
+            "duracion_max_s": 3.867484,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 400,
+                "por_estado": {
+                  "completada": 400
+                },
+                "total_s": 6.302554,
+                "alta_s": 4.085584,
+                "espera_media_s": 0.010180925,
+                "espera_max_s": 0.448788,
+                "duracion_media_s": 2.5944457175,
+                "duracion_max_s": 3.976184,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 400,
+                "por_estado": {
+                  "completada": 400
+                },
+                "total_s": 6.171736,
+                "alta_s": 4.027337,
+                "espera_media_s": 0.010521565,
+                "espera_max_s": 0.356444,
+                "duracion_media_s": 2.5001223075000003,
+                "duracion_max_s": 3.804402,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 400,
+                "por_estado": {
+                  "completada": 400
+                },
+                "total_s": 6.2651,
+                "alta_s": 4.12502,
+                "espera_media_s": 0.0115628175,
+                "espera_max_s": 0.18358,
+                "duracion_media_s": 2.5406985975,
+                "duracion_max_s": 3.867484,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 800,
+            "total_s": 13.9132,
+            "alta_s": 11.692994,
+            "espera_media_s": 0.01363056625,
+            "duracion_media_s": 3.3342278912500003,
+            "duracion_max_s": 5.045964,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 800,
+                "por_estado": {
+                  "completada": 800
+                },
+                "total_s": 13.951836,
+                "alta_s": 11.692994,
+                "espera_media_s": 0.013815201249999999,
+                "espera_max_s": 0.55175,
+                "duracion_media_s": 3.3640507225,
+                "duracion_max_s": 5.135313,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 800,
+                "por_estado": {
+                  "completada": 800
+                },
+                "total_s": 13.9132,
+                "alta_s": 11.493481,
+                "espera_media_s": 0.01340894625,
+                "espera_max_s": 0.6176,
+                "duracion_media_s": 3.32293564375,
+                "duracion_max_s": 5.040882,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 800,
+                "por_estado": {
+                  "completada": 800
+                },
+                "total_s": 13.903616,
+                "alta_s": 11.717965,
+                "espera_media_s": 0.01363056625,
+                "espera_max_s": 0.516514,
+                "duracion_media_s": 3.3342278912500003,
+                "duracion_max_s": 5.045964,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 1200,
+            "total_s": 21.445723,
+            "alta_s": 19.155,
+            "espera_media_s": 0.01479613,
+            "duracion_media_s": 3.5772277708333333,
+            "duracion_max_s": 5.125957,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 1200,
+                "por_estado": {
+                  "completada": 1200
+                },
+                "total_s": 21.420899,
+                "alta_s": 19.159822,
+                "espera_media_s": 0.015285489166666666,
+                "espera_max_s": 0.627834,
+                "duracion_media_s": 3.5768179583333337,
+                "duracion_max_s": 5.108802,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1200,
+                "por_estado": {
+                  "completada": 1200
+                },
+                "total_s": 21.469428,
+                "alta_s": 19.155,
+                "espera_media_s": 0.01479613,
+                "espera_max_s": 0.628179,
+                "duracion_media_s": 3.5932960249999994,
+                "duracion_max_s": 5.159632,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1200,
+                "por_estado": {
+                  "completada": 1200
+                },
+                "total_s": 21.445723,
+                "alta_s": 19.134156,
+                "espera_media_s": 0.01469983,
+                "espera_max_s": 0.531448,
+                "duracion_media_s": 3.5772277708333333,
+                "duracion_max_s": 5.125957,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "serie": "esperar (I/O sin red)",
+        "puntos": [
+          {
+            "n": 100,
+            "total_s": 1.188547,
+            "alta_s": 0.184686,
+            "espera_media_s": 0.00894112,
+            "duracion_media_s": 1.00633488,
+            "duracion_max_s": 1.03191,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.19668,
+                "alta_s": 0.193385,
+                "espera_media_s": 0.00670315,
+                "espera_max_s": 0.02271,
+                "duracion_media_s": 1.00796084,
+                "duracion_max_s": 1.018516,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.188547,
+                "alta_s": 0.184686,
+                "espera_media_s": 0.00894112,
+                "espera_max_s": 0.031,
+                "duracion_media_s": 1.00633488,
+                "duracion_max_s": 1.03191,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 100,
+                "por_estado": {
+                  "completada": 100
+                },
+                "total_s": 1.180436,
+                "alta_s": 0.176724,
+                "espera_media_s": 0.009898289999999999,
+                "espera_max_s": 0.032519,
+                "duracion_media_s": 1.0053693400000001,
+                "duracion_max_s": 1.033853,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 1000,
+            "total_s": 4.132327,
+            "alta_s": 3.125695,
+            "espera_media_s": 0.003259238,
+            "duracion_media_s": 1.004325621,
+            "duracion_max_s": 1.041089,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 1000,
+                "por_estado": {
+                  "completada": 1000
+                },
+                "total_s": 4.010881,
+                "alta_s": 3.007855,
+                "espera_media_s": 0.003360634,
+                "espera_max_s": 0.03572,
+                "duracion_media_s": 1.004132805,
+                "duracion_max_s": 1.041089,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1000,
+                "por_estado": {
+                  "completada": 1000
+                },
+                "total_s": 4.161595,
+                "alta_s": 3.153207,
+                "espera_media_s": 0.003121149,
+                "espera_max_s": 0.049666,
+                "duracion_media_s": 1.0048747980000001,
+                "duracion_max_s": 1.063031,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 1000,
+                "por_estado": {
+                  "completada": 1000
+                },
+                "total_s": 4.132327,
+                "alta_s": 3.125695,
+                "espera_media_s": 0.003259238,
+                "espera_max_s": 0.031756,
+                "duracion_media_s": 1.004325621,
+                "duracion_max_s": 1.036005,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          },
+          {
+            "n": 5000,
+            "total_s": 17.387749,
+            "alta_s": 16.369872,
+            "espera_media_s": 0.0026499534,
+            "duracion_media_s": 1.0043255524,
+            "duracion_max_s": 1.071001,
+            "descargas_con_error": 0,
+            "rechazadas_503": 0,
+            "post_fallidos": 0,
+            "corridas": [
+              {
+                "n": 5000,
+                "por_estado": {
+                  "completada": 5000
+                },
+                "total_s": 17.080703,
+                "alta_s": 16.078752,
+                "espera_media_s": 0.0026499534,
+                "espera_max_s": 0.044419,
+                "duracion_media_s": 1.0037862716,
+                "duracion_max_s": 1.049333,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 5000,
+                "por_estado": {
+                  "completada": 5000
+                },
+                "total_s": 17.387749,
+                "alta_s": 16.369872,
+                "espera_media_s": 0.0024037844,
+                "espera_max_s": 0.04531,
+                "duracion_media_s": 1.0043255524,
+                "duracion_max_s": 1.071001,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              },
+              {
+                "n": 5000,
+                "por_estado": {
+                  "completada": 5000
+                },
+                "total_s": 18.028219,
+                "alta_s": 17.01987,
+                "espera_media_s": 0.002762845,
+                "espera_max_s": 0.050848,
+                "duracion_media_s": 1.0047091796,
+                "duracion_max_s": 1.080719,
+                "rechazadas_503": 0,
+                "post_fallidos": 0,
+                "descargas_con_error": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

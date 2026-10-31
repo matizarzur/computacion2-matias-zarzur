@@ -1,0 +1,63 @@
+{
+  "entorno": {
+    "fecha": "2026-10-31T01:22:47-03:00",
+    "cpu": "Intel(R) Core(TM) i5-6200U CPU @ 2.30GHz",
+    "cpus_logicas": 4,
+    "ram": "7983772 kB",
+    "so": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "docker": "Docker version 29.9.1, build dfc520d",
+    "python_contenedor": "Python 3.12.16"
+  },
+  "clk_tck": 100,
+  "a_recursos_bajo_carga": [
+    {
+      "carga": "descargar n=800",
+      "total_s": 13.994971,
+      "alta_s": 11.880221,
+      "duracion_media_s": 2.9584896275,
+      "cpu_api_mediana_pct": 95.0329334292305,
+      "cpu_api_max_pct": 109.88952824058613,
+      "conexiones_lento_max": 100,
+      "conexiones_lento_mediana": 100
+    },
+    {
+      "carga": "esperar n=5000",
+      "total_s": 21.430821,
+      "alta_s": 20.428893,
+      "duracion_media_s": 1.0053793012,
+      "cpu_api_mediana_pct": 40.69588984078537,
+      "cpu_api_max_pct": 44.05285442145057,
+      "conexiones_lento_max": 0,
+      "conexiones_lento_mediana": 0
+    }
+  ],
+  "b_cpu_del_cliente": [
+    {
+      "en_vuelo": 1,
+      "post_por_s": 302.4968669011212,
+      "cpu_cliente_pct": 75.18585826081012
+    },
+    {
+      "en_vuelo": 50,
+      "post_por_s": 277.81884472777676,
+      "cpu_cliente_pct": 94.79550273106777
+    }
+  ],
+  "c_varios_clientes": [
+    {
+      "clientes": 1,
+      "post_por_s": 256.0982784395507,
+      "cpu_api_pct": 39.18303660125126
+    },
+    {
+      "clientes": 2,
+      "post_por_s": 411.5199618286308,
+      "cpu_api_pct": 66.66623381623819
+    },
+    {
+      "clientes": 4,
+      "post_por_s": 412.44208675166993,
+      "cpu_api_pct": 69.49649161765639
+    }
+  ]
+}
