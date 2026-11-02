@@ -72,23 +72,226 @@ Autor: Matías Zarzur
 
 ## 5. Mediciones
 
-> **[PENDIENTE]** Hardware y fecha (Intel i5-6200U, 2 núcleos físicos / 4
-> hilos, 7,6 GB de RAM, Docker 29.9.1, Python 3.12.16 en el contenedor;
-> 31/10/2026), metodología (3 repeticiones con el contenedor recreado,
-> mediana, tiempos tomados de las marcas del servidor) y cómo reproducirlas.
-> Resultados crudos en `medicion/resultados/`.
+Todos los números de esta sección son medidos, no estimados.
+
+| | |
+|-|-|
+| **Fecha** | 31/10/2026 |
+| **CPU** | Intel Core i5-6200U @ 2,30 GHz: **2 núcleos físicos, 4 hilos** (hyperthreading) |
+| **RAM** | 7,6 GB |
+| **Software** | Linux 7.0, Docker 29.9.1, Python 3.12.16 dentro del contenedor |
+
+**Cómo se midió.**
+
+- Todo corre en Docker, con el `docker-compose.yml` del proyecto. Las
+  descargas van contra el servicio `lento` (`medicion/servidor_lento.py`), que
+  responde 1.000 bytes después de la demora pedida. Así los tiempos no
+  dependen de internet y se pueden repetir.
+- Cada escenario se corrió **3 veces**, recreando el contenedor de la API
+  antes de cada corrida para que arranque sin tareas acumuladas. Se informa
+  la **mediana**.
+- Los tiempos salen de las marcas que el propio servidor guarda en cada tarea,
+  no del cronómetro del cliente:
+  - **total**: desde que se creó la primera tarea hasta que terminó la última;
+  - **alta**: cuánto tardó el servidor en recibir todos los `POST`;
+  - **espera**: cuánto estuvo cada tarea en la cola antes de que la tomara un
+    worker;
+  - **duración**: cuánto tardó cada tarea en ejecutarse.
+- El cliente que genera la carga tiene como mucho 50 `POST` en vuelo. Sin ese
+  límite, el que se trababa era el propio cliente (ver 5.3).
+
+**Para reproducirlo**, desde `TP2_tareas/` y con el entorno virtual creado
+(ver sección 8):
+
+```bash
+./venv/bin/python medicion/medir.py        # las tres mediciones, ~10 min
+./venv/bin/python medicion/diagnostico.py  # la evidencia de 5.3, ~3 min
+```
+
+Los resultados crudos de las corridas de esta sección están en
+`medicion/resultados/medicion_20261031_010838.json` y
+`medicion/resultados/diagnostico_20261031_012443.json`.
 
 ### 5.1 Concurrencia de I/O: 20 descargas secuenciales contra concurrentes
 
-> **[PENDIENTE]**
+Veinte descargas de una URL que tarda 1 segundo en responder, en cuatro
+configuraciones:
+
+| Escenario | Configuración | Tiempo (mediana) | Speedup |
+|---|---|---|---|
+| Secuencial: 20 tareas de 1 URL | `WORKERS=1` | **20,43 s** | 1,0x |
+| 20 tareas de 1 URL | `WORKERS=4` (por defecto) | 5,15 s | 4,0x |
+| 20 tareas de 1 URL | `WORKERS=20` | **1,10 s** | **18,6x** |
+| **1 tarea** con 20 URLs | `WORKERS=1` | **1,09 s** | **18,7x** |
+
+Las tres corridas de cada escenario difieren como mucho en 0,06 s, y las 20
+descargas terminaron bien en todos los casos.
+
+**Interpretación.**
+
+- **En secuencia, el tiempo es la suma de las demoras.** Con un solo worker,
+  cada tarea espera a que termine la anterior: 20 × 1 s más un poco de
+  overhead. Es lo que pasaría con un `for` que hace `await` de cada descarga
+  una por una.
+- **Con 4 workers, el límite es el pool.** El speedup es exactamente 4: las
+  tareas salen en 5 tandas de 4.
+- **Concurrentes, el tiempo es el de la más lenta.** Con 20 workers, las 20
+  descargas esperan la respuesta a la vez, en un solo hilo: mientras una
+  espera la red, el event loop atiende a las otras. El speedup no llega a 20
+  por unos 0,1 s fijos de overhead: recibir los `POST`, abrir las conexiones y
+  repartir las tareas.
+- **Una sola tarea logra lo mismo que 20 workers.** Dentro de `descargar`, el
+  `asyncio.TaskGroup` lanza las 20 descargas a la vez. La concurrencia no
+  depende de cuántos workers haya, sino de que nadie bloquee el loop mientras
+  espera. La diferencia entre las dos filas de abajo es de granularidad: con
+  20 tareas, cada descarga tiene su propio estado, su timeout y se puede
+  cancelar por separado; con 1 tarea, hay un único resultado y se cancelan
+  todas juntas.
 
 ### 5.2 El event loop bloqueado
 
-> **[PENDIENTE]**
+Un `hashear` de 4.000.000 vueltas (unos 4 segundos de CPU) y, mientras corre,
+un `GET /tareas` cada 100 ms para medir cuánto tarda en responder la API.
+`MODO_CPU=loop` ejecuta el cálculo dentro del event loop (mal a propósito);
+`MODO_CPU=executor`, en un `ProcessPoolExecutor`.
+
+| `MODO_CPU` | `GET` pudo hacerse | `GET` más lento | `GET` típico (mediana) | `GET` en reposo | Duración del hash |
+|---|---|---|---|---|---|
+| `loop` | **1 vez** | **3.703 ms** | 3.703 ms | 2,8 ms | 3,70 s |
+| `executor` | 39 veces | **18 ms** | 3,0 ms | 2,8 ms | 3,89 s |
+
+**Interpretación.**
+
+- **Sin executor, la API queda congelada todo el cálculo.** En las tres
+  corridas, el único `GET` que se llegó a mandar tardó lo mismo que el hash
+  entero (3,70 s contra 3,70 s). El servidor ni siquiera podía leer el pedido:
+  el event loop es un solo hilo y estaba ocupado calculando, sin ningún `await`
+  donde ceder el control. Durante esos 3,7 segundos tampoco avanza ninguna
+  otra tarea, no vence ningún timeout y no se puede cancelar nada. Es
+  exactamente lo que hace un `time.sleep()` dentro de una corrutina.
+- **Con executor, la API ni se entera.** Los 39 `GET` respondieron en una
+  mediana de 3,0 ms, prácticamente igual que en reposo (2,8 ms). El peor fue
+  de 18 ms: **unas 200 veces menos** que sin executor. El cálculo corre en
+  otro proceso, y el loop solo espera el resultado con `await`.
+- **Por qué procesos y no threads.** Un thread no alcanza para trabajo de CPU
+  en Python: por el GIL, solo un thread ejecuta bytecode a la vez, y el
+  cálculo le competiría al event loop por el intérprete. Un proceso tiene su
+  propio intérprete y su propio GIL. (Esta comparación es de la clase 21; no
+  se repitió en este TP.)
+- **Lo que cuesta partir el cálculo en bloques.** Con executor, el hash se
+  manda de a bloques de 100.000 vueltas para poder cancelarlo entre bloque y
+  bloque (ver sección 4). Eso cuesta un **5%** de tiempo: 3,89 s contra 3,70 s
+  de corrido, por pasar cada bloque entre procesos 40 veces.
 
 ### 5.3 El techo del pool
 
-> **[PENDIENTE]**
+Se subió la cantidad de tareas simultáneas hasta ver dónde se degradan los
+tiempos, con workers y cola de sobra (`WORKERS=5000`, `COLA_MAX=10000`) para
+que el límite apareciera en otro lado. Se hizo con los tres tipos de tarea,
+porque cada uno agota un recurso distinto.
+
+**`hashear` (CPU), 500.000 vueltas por tarea:**
+
+| Tareas a la vez | Total | Duración media por tarea | Hashes por segundo |
+|---|---|---|---|
+| 1 | 0,50 s | 0,50 s | 2,0 |
+| 2 | 0,60 s | 0,60 s | 3,3 |
+| 3 | 0,77 s | 0,72 s | 3,9 |
+| 4 | 0,99 s | 0,96 s | 4,0 |
+| 6 | 1,47 s | 1,39 s | 4,1 |
+| 8 | 1,94 s | 1,81 s | 4,1 |
+| 12 | 2,90 s | 2,66 s | 4,1 |
+| 16 | 3,82 s | 3,50 s | 4,2 |
+
+**`descargar` (I/O de red), una URL de 1 s por tarea:**
+
+| Tareas a la vez | Total | Alta de todas | Duración media | Duración máxima |
+|---|---|---|---|---|
+| 50 | 1,21 s | 0,04 s | 1,17 s | 1,18 s |
+| 100 | 1,39 s | 0,35 s | 1,14 s | 1,23 s |
+| 200 | 2,85 s | 1,01 s | 1,83 s | 2,43 s |
+| 400 | 6,27 s | 4,09 s | 2,54 s | 3,87 s |
+| 800 | 13,91 s | 11,69 s | 3,33 s | 5,05 s |
+| 1.200 | 21,45 s | 19,16 s | 3,58 s | 5,13 s |
+
+**`esperar` (I/O sin red), 1 s por tarea:**
+
+| Tareas a la vez | Total | Alta de todas | Duración media | Duración máxima |
+|---|---|---|---|---|
+| 100 | 1,19 s | 0,18 s | 1,01 s | 1,03 s |
+| 1.000 | 4,13 s | 3,13 s | 1,00 s | 1,04 s |
+| 5.000 | 17,39 s | 16,37 s | 1,00 s | 1,07 s |
+
+En ninguna corrida hubo descargas con error, pedidos rechazados (503) ni
+`POST` fallidos. La espera media en la cola fue de menos de 0,02 s en todos
+los casos: con 5000 workers, la cola nunca fue el límite.
+
+Para saber **por qué** se degradan, `medicion/diagnostico.py` repite las
+cargas más altas midiendo mientras corren: la CPU del proceso de la API
+(leída de `/proc/1/stat` dentro del contenedor), las conexiones TCP abiertas
+contra el servidor de prueba (de `/proc/net/tcp`) y la CPU del propio cliente
+que genera la carga.
+
+| Carga | CPU del proceso de la API | Conexiones abiertas al servidor de prueba |
+|---|---|---|
+| 800 descargas | **95%** de un núcleo (mediana) | **100** (máximo y mediana) |
+| 5000 esperas | 41% de un núcleo | 0 |
+
+| Cómo se generó la carga | `POST` por segundo | CPU del cliente | CPU de la API |
+|---|---|---|---|
+| 1 cliente, de a un pedido | 302 | 75% | — |
+| 1 cliente, 50 pedidos en vuelo | 278 | **95%** | — |
+| 1 cliente | 256 | — | 39% |
+| 2 clientes en paralelo | **412** | — | 67% |
+| 4 clientes en paralelo | **412** | — | 69% |
+
+**Dónde está el límite y por qué.**
+
+| Tipo de tarea | Desde dónde se degrada | Qué se agota | Evidencia |
+|---|---|---|---|
+| `hashear` | 2 a 4 tareas | **Los núcleos de la CPU** | Tope de ~4,1 hashes/s |
+| `descargar` | ~200 tareas | **Las 100 conexiones de `httpx`** y **el event loop de la API** | 100 conexiones abiertas; API al 95% |
+| `esperar` | No se degrada hasta 5000 | Nada del servicio: el límite es el generador de carga | Duración 1,00 s; API al 41% |
+
+- **CPU: el techo son los núcleos.** Una tarea tarda 0,50 s. Dos tardan casi
+  lo mismo (0,60 s), porque cada una usa un núcleo físico. Con 4, el
+  hyperthreading aporta apenas un 21% más (de 3,3 a 4,0 hashes/s). A partir de
+  ahí el rendimiento queda clavado en ~4,1 hashes/s y el tiempo crece en línea
+  recta con la cantidad de tareas. Agregar workers o procesos no ayuda: no hay
+  más CPU para repartir. La duración media es casi igual al total (3,50 s
+  contra 3,82 s con 16 tareas) porque, al estar partidas en bloques, todas las
+  tareas avanzan juntas y terminan casi a la vez, en vez de salir en tandas.
+- **Red: dos topes que se suman.** Hasta 100 descargas, cada una tarda lo
+  que la red (1,14 s). Desde 200 la duración sube, porque el cliente `httpx`
+  compartido abre **como mucho 100 conexiones** (medido: exactamente 100) y las
+  demás descargas esperan una conexión libre *dentro* de la tarea. Por eso la
+  espera en la cola sigue siendo casi cero y lo que crece es la duración. Al
+  mismo tiempo, **el event loop de la API se satura** (95% de un núcleo):
+  atiende en un solo hilo los `POST` que llegan y cientos de descargas que
+  salen. Eso se ve en el alta, que baja de unos 300 tareas/s con `esperar` a
+  63 tareas/s con 1200 descargas.
+- **Sin red: el event loop no fue el límite.** Con 5000 tareas esperando a la
+  vez, cada una sigue durando 1,00 s: tener miles de corrutinas suspendidas
+  cuesta muy poco. El total lo marca el alta, y el alta la limita **el
+  generador de carga**, no el servicio. Un solo cliente queda al 95% de CPU
+  mientras la API está al 41%. Con 2 clientes en paralelo se llega a 412
+  `POST`/s, y con 4 ya no sube: la API se queda en 69% porque se satura **la
+  máquina**, cuyos 2 núcleos comparten los clientes y el servidor. El techo
+  propio del servicio para tareas livianas no se pudo aislar en este
+  hardware.
+- **Una lección de la medición.** La primera versión de `medir.py` mandaba
+  los 1000 `POST` juntos. El cliente se trababa en su propio pool de
+  conexiones y bajaba a 23 `POST`/s, mientras la API estaba al 17% de CPU:
+  parecía un techo del servicio y era un problema de la herramienta. Por eso
+  el cliente tiene como mucho 50 pedidos en vuelo, y por eso existe
+  `diagnostico.py`.
+
+**¿Qué pasa con 10.000 tareas de golpe?** Con la configuración por defecto,
+el primer límite es deliberado: la cola acepta 100 tareas (`COLA_MAX`) y los
+4 workers toman otras 4, así que las siguientes reciben **503** en el acto,
+en vez de quedar acumulándose en memoria (lo cubre
+`test_cola_llena_da_503`). Si se agranda la cola, lo que se agota primero
+depende del tipo de tarea, como muestran las tablas de arriba.
 
 ---
 
@@ -154,8 +357,9 @@ Autor: Matías Zarzur
 
 - **El techo de alta de tareas livianas no quedó aislado.** En esta máquina
   el generador de carga y el servidor comparten los mismos 2 núcleos físicos:
-  el máximo medido fue de unos 410 `POST`/s con la API al 67% de CPU, y con
-  más clientes no sube porque se satura la máquina, no el servicio. Para medir
+  el máximo medido fue de 412 `POST`/s, con la API entre el 67% y el 69% de
+  CPU, y con más clientes no sube porque se satura la máquina, no el
+  servicio. Para medir
   el techo propio del servidor habría que generar la carga desde otra
   máquina.
 
