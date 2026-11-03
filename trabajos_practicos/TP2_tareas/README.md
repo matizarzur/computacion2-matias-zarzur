@@ -6,7 +6,7 @@ Autor: Matías Zarzur
 
 ---
 
-## 1. Descripción general
+## 1. Descripción y uso
 
 Una plataforma de tareas distribuidas: un servicio al que se le encargan
 trabajos por HTTP, que los ejecuta de forma concurrente y permite consultar su
@@ -115,7 +115,7 @@ volumen de Docker; `docker compose down -v` también los borra.
 
 ---
 
-## 2. Arquitectura
+## 2. Diagrama de arquitectura
 
 ### Componentes
 
@@ -549,7 +549,7 @@ Ninguna de las dos se traga una cancelación: `CancelledError` hereda de
 
 ---
 
-## 5. Mediciones
+## 5. Las tres mediciones
 
 Todos los números de esta sección son medidos, no estimados.
 
@@ -1041,8 +1041,6 @@ las demás dentro del contenedor hay que agregarlas ahí, en `environment`.
 
 ## 10. Lo que aprendí
 
-<!-- BORRADOR: revisar y reescribir con mis palabras antes de entregar. -->
-
 Lo primero que me llevo es que un sistema puede funcionar bien y aun así
 tener límites que no se ven hasta que uno los busca. Al auditar el trabajo
 medí cuánto tardaba `GET /tareas` con miles de tareas guardadas y vi que
@@ -1054,10 +1052,9 @@ parecido pasó con las descargas: el límite de 100 conexiones no estaba en mi
 código sino en el cliente HTTP. Aprendí a escribir las limitaciones con
 números en vez de esconderlas.
 
-Lo que más me costó entender fueron las mediciones. Al principio pensaba que
-medir era cronometrar y anotar el resultado, pero la primera vez que medí el
-techo del pool los números decían que el servicio aceptaba apenas 23 tareas
-por segundo, y no era cierto: el que estaba trabado era el propio programa
+Lo que más me costó entender fueron las mediciones. La primera vez que medí
+el techo del pool, los números decían que el servicio aceptaba apenas 23
+tareas por segundo, y no era cierto: el que estaba trabado era el propio programa
 que mandaba los pedidos, mientras el servidor estaba casi sin trabajo. Recién
 lo entendí cuando medí la CPU de cada lado por separado. De ahí saqué que una
 medición también puede estar midiendo la herramienta y no el sistema, que

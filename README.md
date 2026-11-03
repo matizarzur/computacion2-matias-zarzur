@@ -31,4 +31,4 @@ El material de la cátedra se toma de
 |------------|--------|
 | Bloque 0   | Listo  |
 | TP1        | Listo  |
-| TP2        | Pendiente |
+| TP2        | Listo  |
